@@ -5,7 +5,8 @@ export interface ResourceNodeState {
   id: string;
   itemId: string;
   position: { x: number; y: number };
-  remaining: number;
+  remaining: number;    // how many times it can be fully harvested
+  hitProgress: number;  // current hits applied toward next harvest
 }
 
 export function createResourceNode(itemId: string, x: number, y: number): ResourceNodeState {
@@ -13,6 +14,7 @@ export function createResourceNode(itemId: string, x: number, y: number): Resour
     id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     itemId, position: { x, y },
     remaining: 3 + Math.floor(Math.random() * 5),
+    hitProgress: 0,
   };
 }
 

@@ -26,6 +26,7 @@ import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
 import { ResourceNodeState } from '@/entities/ResourceNode';
 import { getItemDef } from '@/config/items';
+import { getGatherResult } from '@/config/gathering';
 import { CraftingStation } from '@/types/items';
 import { RECIPE_DEFINITIONS } from '@/config/recipes';
 
@@ -374,10 +375,17 @@ export class GameScene extends Phaser.Scene {
           this.hoveredResource = res.sprite;
           const itemDef = getItemDef(res.state.itemId);
           const name = itemDef?.name ?? res.state.itemId;
-          this.tooltip.setText(`${name}  (${res.state.remaining} left)`);
+          const gResult = getGatherResult(res.state.itemId, this.player.equipment.weapon);
+          let info = `${name}  (${res.state.remaining} left)`;
+          if (!gResult.canGather) {
+            info += `  [${gResult.reason}]`;
+          } else if (gResult.hitsNeeded > 1) {
+            info += `  ${gResult.hitsNeeded} hits, +${gResult.yield}`;
+          }
+          this.tooltip.setText(info);
           this.tooltip.setPosition(pointer.x + 12, pointer.y - 8);
           this.tooltip.setVisible(true);
-          this.input.setDefaultCursor('pointer');
+          this.input.setDefaultCursor(gResult.canGather ? 'pointer' : 'not-allowed');
           return;
         }
       }
@@ -534,15 +542,9 @@ export class GameScene extends Phaser.Scene {
 
     // Check if we've arrived at a gather target
     if (this.gatherTarget && dist < GATHER_RANGE) {
-      this.playerSprite.play('player_gather', true);
-      this.doGather(this.gatherTarget);
-      this.gatherTarget = null;
       this.moveTarget = null;
       this.moveMarker.setVisible(false);
-      // Stay in gather anim briefly, then idle
-      this.time.delayedCall(500, () => {
-        if (!this.moveTarget) this.playerSprite.play('player_idle', true);
-      });
+      this.doGatherHit(this.gatherTarget);
       return;
     }
 
@@ -568,15 +570,30 @@ export class GameScene extends Phaser.Scene {
     this.player.position.y = this.playerSprite.y;
   }
 
-  private doGather(res: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }): void {
-    if (res.state.remaining <= 0) return;
-    res.state.remaining--;
-    this.itemSystem.addItem(this.player.inventory, res.state.itemId, 1);
+  private doGatherHit(res: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }): void {
+    if (res.state.remaining <= 0) {
+      this.gatherTarget = null;
+      this.playerSprite.play('player_idle', true);
+      return;
+    }
 
-    // Floating text feedback
-    this.showFloatingText(res.sprite.x, res.sprite.y - 16, `+1`);
+    const result = getGatherResult(res.state.itemId, this.player.equipment.weapon);
 
-    // Shake the resource slightly
+    // Can't gather without proper tool
+    if (!result.canGather) {
+      this.showFloatingText(res.sprite.x, res.sprite.y - 20, result.reason ?? 'Cannot gather', '#f87171');
+      this.gatherTarget = null;
+      this.playerSprite.play('player_idle', true);
+      return;
+    }
+
+    // Play gather animation
+    this.playerSprite.play('player_gather', true);
+
+    // Apply one hit
+    res.state.hitProgress++;
+
+    // Shake resource
     this.tweens.add({
       targets: res.sprite,
       x: res.sprite.x + 2,
@@ -585,8 +602,44 @@ export class GameScene extends Phaser.Scene {
       repeat: 1,
     });
 
+    // Show hit progress
+    if (res.state.hitProgress < result.hitsNeeded) {
+      this.showFloatingText(
+        res.sprite.x, res.sprite.y - 16,
+        `${res.state.hitProgress}/${result.hitsNeeded}`,
+        '#94a3b8',
+      );
+      // Schedule next hit
+      this.time.delayedCall(400, () => {
+        if (this.gatherTarget === res && res.state.remaining > 0) {
+          this.doGatherHit(res);
+        }
+      });
+      return;
+    }
+
+    // Harvest complete — collect items
+    res.state.hitProgress = 0;
+    res.state.remaining--;
+
+    const itemDef = getItemDef(res.state.itemId);
+    const name = itemDef?.name ?? res.state.itemId;
+    this.itemSystem.addItem(this.player.inventory, res.state.itemId, result.yield);
+    this.showFloatingText(res.sprite.x, res.sprite.y - 16, `+${result.yield} ${name}`, '#86efac');
+
     if (res.state.remaining <= 0) {
       res.sprite.setAlpha(0.2);
+      this.gatherTarget = null;
+      this.time.delayedCall(300, () => {
+        if (!this.moveTarget) this.playerSprite.play('player_idle', true);
+      });
+    } else {
+      // Auto-continue gathering next unit
+      this.time.delayedCall(400, () => {
+        if (this.gatherTarget === res && res.state.remaining > 0) {
+          this.doGatherHit(res);
+        }
+      });
     }
   }
 
@@ -812,6 +865,7 @@ export class GameScene extends Phaser.Scene {
               itemId: tile.resourceNodeId,
               position: { x: sx, y: sy - 8 },
               remaining: 3 + Math.floor(Math.random() * 5),
+              hitProgress: 0,
             },
             sprite: resSprite,
           });
