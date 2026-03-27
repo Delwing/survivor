@@ -864,25 +864,17 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.fillPath();
 
-        // --- Sub-region texture: 2-3 small shaded patches inside the diamond ---
+        // --- Sub-region texture: scattered single-pixel dots for organic feel ---
         const h4 = GameScene.tileHash(absX + 3001, absY + 3011);
         const h5 = GameScene.tileHash(absX + 4007, absY + 4003);
-        // Shadow patch (slightly darker) in one quadrant
-        const spx = sx + (h - 0.5) * hw * 0.55;
-        const spy = sy + (h3 - 0.5) * hh * 0.55;
-        gfx.fillStyle(ground.subA, 0.30);
-        gfx.fillRect(spx - 3, spy - 1, 6, 3);
-        // Highlight patch (slightly lighter) offset by second hash
-        const hpx = sx + (h2 - 0.5) * hw * 0.5;
-        const hpy = sy + (h4 - 0.5) * hh * 0.5;
-        gfx.fillStyle(ground.subB, 0.22);
-        gfx.fillRect(hpx - 2, hpy - 1, 5, 2);
-        // Optional third micro-patch on ~55% of tiles
-        if (h5 < 0.55) {
-          const mp3x = sx + (h5 - 0.5) * hw * 0.45;
-          const mp3y = sy + (h3 * 0.5 - 0.25) * hh * 0.6;
-          gfx.fillStyle(ground.subA, 0.18);
-          gfx.fillRect(mp3x - 2, mp3y, 4, 2);
+        // Scatter 3-5 single-pixel dots in varied shades across the diamond
+        gfx.fillStyle(ground.subA, 0.35);
+        gfx.fillRect(sx + (h - 0.5) * hw * 0.5, sy + (h3 - 0.5) * hh * 0.4, 1, 1);
+        gfx.fillRect(sx + (h2 - 0.5) * hw * 0.6, sy + (h4 - 0.5) * hh * 0.5, 1, 1);
+        gfx.fillStyle(ground.subB, 0.25);
+        gfx.fillRect(sx + (h4 - 0.5) * hw * 0.4, sy + (h - 0.5) * hh * 0.3, 1, 1);
+        if (h5 < 0.5) {
+          gfx.fillRect(sx + (h5 - 0.5) * hw * 0.7, sy + (h2 - 0.5) * hh * 0.4, 1, 1);
         }
 
         // Thin bottom edge for subtle depth separation
@@ -921,7 +913,7 @@ export class GameScene extends Phaser.Scene {
     this.renderedChunks.set(chunkKey(cx, cy), { tileGraphics: gfx, resourceSprites });
   }
 
-  /** Draw small detail marks on tiles */
+  /** Draw small detail marks on tiles — only 1px dots and diagonal lines */
   private drawTileDetails(
     gfx: Phaser.GameObjects.Graphics,
     sx: number, sy: number,
@@ -930,137 +922,93 @@ export class GameScene extends Phaser.Scene {
     detailColors: number[],
     h: number, h2: number, h3: number, h4: number, h5: number,
   ): void {
-    // Primary detail position — kept well inside diamond to avoid edge bleed
-    const dx1 = (h - 0.5) * hw * 0.48;
-    const dy1 = (h3 - 0.5) * hh * 0.38;
-    // Secondary detail position — offset by other hashes
-    const dx2 = (h4 - 0.5) * hw * 0.44;
-    const dy2 = (h5 - 0.5) * hh * 0.36;
+    // Positions kept well inside diamond
+    const dx1 = (h - 0.5) * hw * 0.45;
+    const dy1 = (h3 - 0.5) * hh * 0.35;
+    const dx2 = (h4 - 0.5) * hw * 0.4;
+    const dy2 = (h5 - 0.5) * hh * 0.3;
 
     switch (biome) {
       case 'forest': {
-        // Grass clump — 2-3 tiny blades
-        const gc = h2 < 0.3 ? detailColors[0] : detailColors[1];
-        gfx.lineStyle(1, gc, 0.65);
-        gfx.lineBetween(sx + dx1 - 2, sy + dy1 + 1, sx + dx1 - 1, sy + dy1 - 1);
-        gfx.lineBetween(sx + dx1,     sy + dy1 + 1, sx + dx1,     sy + dy1 - 2);
-        gfx.lineBetween(sx + dx1 + 2, sy + dy1 + 1, sx + dx1 + 1, sy + dy1 - 1);
-        // Second smaller clump on ~45% of detail tiles
-        if (h3 < 0.45) {
-          gfx.lineStyle(1, detailColors[1], 0.55);
-          gfx.lineBetween(sx + dx2 - 1, sy + dy2 + 1, sx + dx2,     sy + dy2 - 1);
-          gfx.lineBetween(sx + dx2 + 1, sy + dy2 + 1, sx + dx2 + 1, sy + dy2 - 1);
+        // Grass blades — short diagonal lines
+        gfx.lineStyle(1, detailColors[h2 < 0.3 ? 0 : 1], 0.5);
+        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 - 1, sy + dy1 - 2);
+        gfx.lineBetween(sx + dx1 + 2, sy + dy1, sx + dx1 + 3, sy + dy1 - 2);
+        // Leaf dot
+        if (h4 < 0.2) {
+          gfx.fillStyle(h5 < 0.5 ? detailColors[2] : detailColors[3], 0.7);
+          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
         }
-        // Fallen leaf — orange/yellow pixel on ~25% of detail tiles
-        if (h4 < 0.25) {
-          const leafCol = h5 < 0.5 ? detailColors[2] : detailColors[3];
-          gfx.fillStyle(leafCol, 0.75);
-          gfx.fillRect(sx + dx2 + 2, sy + dy2, 2, 1);
-        }
-        // Dirt patch — small brown rectangle on ~30% of detail tiles
-        if (h5 < 0.30) {
-          gfx.fillStyle(detailColors[4], 0.45);
-          gfx.fillRect(sx + dx1 - 2, sy + dy1 + 2, 5, 2);
+        // Dirt dot
+        if (h5 < 0.25) {
+          gfx.fillStyle(detailColors[4], 0.4);
+          gfx.fillRect(sx + dx1 + 1, sy + dy1 + 1, 1, 1);
         }
         break;
       }
       case 'rocky_highlands': {
-        // Rock fragment — small gray polygon (approximated with fillRect)
-        gfx.fillStyle(detailColors[0], 0.60);
-        gfx.fillRect(sx + dx1 - 2, sy + dy1 - 1, 4, 2);
-        gfx.fillStyle(detailColors[1], 0.40);
-        gfx.fillRect(sx + dx1 - 1, sy + dy1 - 2, 2, 1);
-        // Gravel scatter — light gray pixel cluster
-        if (h3 < 0.50) {
-          gfx.fillStyle(detailColors[3], 0.45);
-          gfx.fillRect(sx + dx2 - 1, sy + dy2,     1, 1);
-          gfx.fillRect(sx + dx2 + 1, sy + dy2 - 1, 1, 1);
-          gfx.fillRect(sx + dx2 + 2, sy + dy2 + 1, 1, 1);
-          gfx.fillRect(sx + dx2,     sy + dy2 + 2, 1, 1);
+        // Gravel dots
+        gfx.fillStyle(detailColors[1], 0.4);
+        gfx.fillRect(sx + dx1, sy + dy1, 1, 1);
+        gfx.fillRect(sx + dx2 + 1, sy + dy2 - 1, 1, 1);
+        if (h3 < 0.4) {
+          gfx.fillRect(sx + dx2 - 1, sy + dy2 + 1, 1, 1);
         }
-        // Crack line on ~35% of detail tiles
-        if (h4 < 0.35) {
-          gfx.lineStyle(1, detailColors[5], 0.55);
-          gfx.lineBetween(sx + dx1,     sy + dy1 + 1, sx + dx1 + 4, sy + dy1 + 2);
-          gfx.lineBetween(sx + dx1 + 4, sy + dy1 + 2, sx + dx1 + 6, sy + dy1 + 1);
+        // Crack — diagonal line following diamond angle
+        if (h4 < 0.3) {
+          gfx.lineStyle(1, detailColors[5], 0.45);
+          gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 2);
         }
         break;
       }
       case 'swamp': {
-        // Water puddle — dark blue-green rectangle
-        gfx.fillStyle(detailColors[0], 0.55);
-        gfx.fillRect(sx + dx1 - 3, sy + dy1, 6, 2);
-        gfx.fillStyle(detailColors[0], 0.25);
-        gfx.fillRect(sx + dx1 - 4, sy + dy1 + 1, 8, 1);
-        // Bubble in puddle on ~30% of detail tiles
-        if (h3 < 0.30) {
-          gfx.fillStyle(0x8ecece, 0.55);
-          gfx.fillRect(sx + dx1,     sy + dy1 - 1, 1, 1);
-          gfx.fillRect(sx + dx1 + 2, sy + dy1,     1, 1);
+        // Water dots (dark)
+        gfx.fillStyle(detailColors[0], 0.45);
+        gfx.fillRect(sx + dx1, sy + dy1, 1, 1);
+        gfx.fillRect(sx + dx1 + 2, sy + dy1, 1, 1);
+        // Bubble dot
+        if (h3 < 0.25) {
+          gfx.fillStyle(0x8ecece, 0.5);
+          gfx.fillRect(sx + dx1 + 1, sy + dy1 - 1, 1, 1);
         }
-        // Mud patch on ~40% of detail tiles
-        if (h4 < 0.40) {
-          gfx.fillStyle(detailColors[4], 0.45);
-          gfx.fillRect(sx + dx2 - 2, sy + dy2, 5, 2);
-        }
-        // Second small puddle on ~25% of detail tiles
-        if (h5 < 0.25) {
-          gfx.fillStyle(detailColors[0], 0.45);
-          gfx.fillRect(sx + dx2 - 2, sy + dy2 + 3, 4, 1);
+        // Mud dot
+        if (h4 < 0.3) {
+          gfx.fillStyle(detailColors[4], 0.4);
+          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
         }
         break;
       }
       case 'volcanic_wastes': {
-        // Lava vein — bright orange line
-        gfx.lineStyle(1, detailColors[0], 0.65);
-        gfx.lineBetween(sx + dx1 - 4, sy + dy1, sx + dx1, sy + dy1 + 1);
-        gfx.lineBetween(sx + dx1,     sy + dy1 + 1, sx + dx1 + 3, sy + dy1);
-        // Second vein on ~35% of detail tiles
-        if (h3 < 0.35) {
-          gfx.lineStyle(1, detailColors[1], 0.50);
-          gfx.lineBetween(sx + dx2, sy + dy2 - 1, sx + dx2 + 4, sy + dy2 + 1);
+        // Lava vein — diagonal line
+        gfx.lineStyle(1, detailColors[0], 0.5);
+        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1 + 2, sy + dy1 + 1);
+        // Ember dots
+        if (h4 < 0.35) {
+          gfx.fillStyle(detailColors[h5 < 0.5 ? 2 : 3], 0.7);
+          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
         }
-        // Ash patch — dark gray area
-        gfx.fillStyle(detailColors[4], 0.45);
-        gfx.fillRect(sx + dx2 - 3, sy + dy2, 6, 2);
-        // Ember particles on ~40% of detail tiles
-        if (h4 < 0.40) {
-          const emberCol = h5 < 0.5 ? detailColors[2] : detailColors[3];
-          gfx.fillStyle(emberCol, 0.80);
-          gfx.fillRect(sx + dx1 + 1, sy + dy1 - 2, 1, 1);
-          gfx.fillStyle(detailColors[0], 0.70);
-          gfx.fillRect(sx + dx2 - 1, sy + dy2 - 2, 1, 1);
-        }
-        // Cooled lava crack — dark line
-        if (h5 < 0.45) {
-          gfx.lineStyle(1, detailColors[5], 0.60);
-          gfx.lineBetween(sx + dx1, sy + dy1 + 2, sx + dx1 + 5, sy + dy1 + 3);
+        // Cooled crack
+        if (h5 < 0.3) {
+          gfx.lineStyle(1, detailColors[5], 0.5);
+          gfx.lineBetween(sx + dx1 + 1, sy + dy1 + 2, sx + dx1 + 4, sy + dy1 + 3);
         }
         break;
       }
       case 'corrupted_lands': {
-        // Purple energy vein
-        gfx.lineStyle(1, detailColors[0], 0.65);
-        gfx.lineBetween(sx + dx1 - 3, sy + dy1, sx + dx1, sy + dy1 + 1);
-        gfx.lineBetween(sx + dx1,     sy + dy1 + 1, sx + dx1 + 4, sy + dy1 - 1);
-        // Second vein on ~40% of detail tiles
-        if (h3 < 0.40) {
-          gfx.lineStyle(1, detailColors[1], 0.45);
-          gfx.lineBetween(sx + dx2, sy + dy2, sx + dx2 + 5, sy + dy2 + 2);
-        }
-        // Corruption patch — darker purple area
-        gfx.fillStyle(detailColors[3], 0.50);
-        gfx.fillRect(sx + dx2 - 3, sy + dy2 - 1, 6, 3);
+        // Energy vein — diagonal line
+        gfx.lineStyle(1, detailColors[0], 0.5);
+        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1 + 3, sy + dy1 + 1);
         // Glowing rune dots — bright magenta on ~35% of detail tiles
         if (h4 < 0.35) {
           gfx.fillStyle(detailColors[2], 0.85);
           gfx.fillRect(sx + dx1,     sy + dy1 - 2, 1, 1);
           gfx.fillRect(sx + dx2 + 2, sy + dy2 + 1, 1, 1);
         }
-        // Void spot — very dark patch on ~30% of detail tiles
-        if (h5 < 0.30) {
-          gfx.fillStyle(detailColors[4], 0.70);
-          gfx.fillRect(sx + dx1 + 2, sy + dy1 + 1, 4, 2);
+        // Void dots
+        if (h5 < 0.25) {
+          gfx.fillStyle(detailColors[4], 0.6);
+          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
+          gfx.fillRect(sx + dx2 + 1, sy + dy2 + 1, 1, 1);
         }
         break;
       }
