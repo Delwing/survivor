@@ -328,17 +328,25 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Biome fill colors for tile drawing */
-  private static readonly BIOME_COLORS: Record<string, [number, number, number]> = {
-    forest:            [0x3e8948, 0x63c74d, 0x265c42],
-    rocky_highlands:   [0x8b8b8b, 0xb0b0b0, 0x5a5a5a],
-    swamp:             [0x3d6b3d, 0x2a4a2a, 0x5e4a30],
-    volcanic_wastes:   [0x8b1a1a, 0xd62b2b, 0x3a3a3a],
-    corrupted_lands:   [0x3d0066, 0x6b21a8, 0x1a0033],
+  /** Biome color palettes: [base, highlight, shade, detail1, detail2] */
+  private static readonly BIOME_PALETTES: Record<string, number[]> = {
+    forest:          [0x3e8948, 0x63c74d, 0x265c42, 0x4a9a52, 0x56b050, 0x306b38],
+    rocky_highlands: [0x8b8b8b, 0xb0b0b0, 0x5a5a5a, 0x707070, 0x9a9a9a, 0x484848],
+    swamp:           [0x3d6b3d, 0x2a4a2a, 0x5e4a30, 0x4a5a2a, 0x354d35, 0x6b5533],
+    volcanic_wastes: [0x5a2020, 0x8b1a1a, 0x3a2020, 0x6b2a2a, 0x4a1515, 0x332020],
+    corrupted_lands: [0x3d0066, 0x6b21a8, 0x1a0033, 0x500080, 0x2a004d, 0x400070],
   };
 
+  /** Simple deterministic hash for tile variation */
+  private static tileHash(x: number, y: number): number {
+    let h = (x * 374761393 + y * 668265263) | 0;
+    h = (h ^ (h >> 13)) * 1274126177;
+    h = h ^ (h >> 16);
+    return (h >>> 0) / 4294967296; // 0..1
+  }
+
   /**
-   * Draw all tiles in a chunk as a single Graphics object (1 draw call per chunk).
+   * Draw all tiles in a chunk as a single Graphics object with visual variety.
    * Resource nodes are still individual sprites for interaction.
    */
   private renderChunk(cx: number, cy: number): void {
@@ -353,15 +361,23 @@ export class GameScene extends Phaser.Scene {
     for (let row = 0; row < CHUNK_SIZE; row++) {
       for (let col = 0; col < CHUNK_SIZE; col++) {
         const tile = chunk.tiles[row][col];
-        const worldX = (cx * CHUNK_SIZE + col) * TILE_WIDTH / 2;
-        const worldY = (cy * CHUNK_SIZE + row) * TILE_HEIGHT;
+        const absX = cx * CHUNK_SIZE + col;
+        const absY = cy * CHUNK_SIZE + row;
+        const worldX = absX * TILE_WIDTH / 2;
+        const worldY = absY * TILE_HEIGHT;
         const { sx, sy } = worldToScreen(worldX, worldY);
 
-        // Draw isometric diamond for this tile
-        const colors = GameScene.BIOME_COLORS[tile.biomeId] ?? [0x3e8948, 0x63c74d, 0x265c42];
+        const palette = GameScene.BIOME_PALETTES[tile.biomeId] ?? GameScene.BIOME_PALETTES.forest;
+        const h = GameScene.tileHash(absX, absY);
+        const h2 = GameScene.tileHash(absX + 1000, absY + 1000);
+        const h3 = GameScene.tileHash(absX + 2000, absY + 2000);
 
-        // Top half (highlight)
-        gfx.fillStyle(colors[1]);
+        // Pick variant colors based on hash — slight variation per tile
+        const topColor = h < 0.3 ? palette[1] : h < 0.6 ? palette[3] : palette[4];
+        const botColor = h < 0.4 ? palette[2] : h < 0.7 ? palette[5] : palette[2];
+
+        // Top half
+        gfx.fillStyle(topColor);
         gfx.beginPath();
         gfx.moveTo(sx, sy - hh);
         gfx.lineTo(sx + hw, sy);
@@ -370,8 +386,8 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.fillPath();
 
-        // Bottom half (shade)
-        gfx.fillStyle(colors[2]);
+        // Bottom half
+        gfx.fillStyle(botColor);
         gfx.beginPath();
         gfx.moveTo(sx - hw, sy);
         gfx.lineTo(sx, sy);
@@ -380,8 +396,8 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.fillPath();
 
-        // Outline
-        gfx.lineStyle(1, 0x1a1a2e, 0.3);
+        // Edge outline
+        gfx.lineStyle(1, 0x1a1a2e, 0.2);
         gfx.beginPath();
         gfx.moveTo(sx, sy - hh);
         gfx.lineTo(sx + hw, sy);
@@ -390,7 +406,10 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.strokePath();
 
-        // Resource node as individual sprite (for interaction)
+        // Per-biome detail decorations
+        this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, h, h2, h3);
+
+        // Resource node sprite
         if (tile.resourceNodeId) {
           const resKey = `res_${tile.resourceNodeId}`;
           const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
@@ -413,6 +432,84 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.renderedChunks.set(chunkKey(cx, cy), { tileGraphics: gfx, resourceSprites });
+  }
+
+  /** Draw small detail marks on tiles for visual variety */
+  private drawTileDetails(
+    gfx: Phaser.GameObjects.Graphics,
+    sx: number, sy: number,
+    hw: number, hh: number,
+    biome: string,
+    h: number, h2: number, h3: number,
+  ): void {
+    // Only some tiles get detail (keep it sparse)
+    if (h > 0.6) return;
+
+    // Offset positions within the diamond (isometric-safe, staying inside the tile)
+    const dx1 = (h2 - 0.5) * hw * 0.6;
+    const dy1 = (h3 - 0.5) * hh * 0.5;
+    const dx2 = (h - 0.5) * hw * 0.4;
+    const dy2 = (h2 - 0.5) * hh * 0.3;
+
+    switch (biome) {
+      case 'forest': {
+        // Grass tufts — small "V" shapes
+        gfx.lineStyle(1, 0x4a9a52, 0.6);
+        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1, sy + dy1 - 3);
+        gfx.lineBetween(sx + dx1, sy + dy1 - 3, sx + dx1 + 2, sy + dy1);
+        if (h < 0.25) {
+          // Small flowers on some tiles
+          gfx.fillStyle(h3 < 0.5 ? 0xf0c040 : 0xe06060, 0.7);
+          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
+        }
+        break;
+      }
+      case 'rocky_highlands': {
+        // Pebbles — small dots
+        gfx.fillStyle(0x707070, 0.5);
+        gfx.fillRect(sx + dx1, sy + dy1, 2, 1);
+        if (h < 0.3) {
+          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
+          // Crack line
+          gfx.lineStyle(1, 0x484848, 0.4);
+          gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 2);
+        }
+        break;
+      }
+      case 'swamp': {
+        // Puddle — small dark ellipse
+        gfx.fillStyle(0x2a3a2a, 0.4);
+        gfx.fillRect(sx + dx1 - 2, sy + dy1, 5, 2);
+        if (h < 0.2) {
+          // Lily pad dot
+          gfx.fillStyle(0x50a050, 0.6);
+          gfx.fillRect(sx + dx1, sy + dy1, 2, 1);
+        }
+        break;
+      }
+      case 'volcanic_wastes': {
+        // Cracks with glow
+        gfx.lineStyle(1, 0xff4400, 0.3);
+        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 5, sy + dy1 + 2);
+        if (h < 0.2) {
+          // Ember dot
+          gfx.fillStyle(0xff6600, 0.5);
+          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
+        }
+        break;
+      }
+      case 'corrupted_lands': {
+        // Corruption veins
+        gfx.lineStyle(1, 0x8b00ff, 0.3);
+        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 1);
+        if (h < 0.15) {
+          // Glowing rune dot
+          gfx.fillStyle(0xcc44ff, 0.5);
+          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
+        }
+        break;
+      }
+    }
   }
 
   private spawnEntitiesForChunk(cx: number, cy: number): void {
