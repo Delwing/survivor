@@ -328,13 +328,36 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** Biome color palettes: [base, highlight, shade, detail1, detail2] */
-  private static readonly BIOME_PALETTES: Record<string, number[]> = {
-    forest:          [0x3e8948, 0x63c74d, 0x265c42, 0x4a9a52, 0x56b050, 0x306b38],
-    rocky_highlands: [0x8b8b8b, 0xb0b0b0, 0x5a5a5a, 0x707070, 0x9a9a9a, 0x484848],
-    swamp:           [0x3d6b3d, 0x2a4a2a, 0x5e4a30, 0x4a5a2a, 0x354d35, 0x6b5533],
-    volcanic_wastes: [0x5a2020, 0x8b1a1a, 0x3a2020, 0x6b2a2a, 0x4a1515, 0x332020],
-    corrupted_lands: [0x3d0066, 0x6b21a8, 0x1a0033, 0x500080, 0x2a004d, 0x400070],
+  /**
+   * Biome ground palettes. Each biome has a set of base colors that tiles
+   * randomly pick from, plus a subtle edge shade color.
+   */
+  private static readonly BIOME_GROUNDS: Record<string, { bases: number[]; edge: number; details: number[] }> = {
+    forest: {
+      bases: [0x3e8948, 0x448e4c, 0x3a8244, 0x4a9a52, 0x408a48, 0x368040],
+      edge: 0x2c6e36,
+      details: [0x56b050, 0x4a9a52, 0xf0c040, 0xe06060],
+    },
+    rocky_highlands: {
+      bases: [0x787878, 0x828282, 0x6e6e6e, 0x8a8a8a, 0x747474, 0x808080],
+      edge: 0x585858,
+      details: [0x606060, 0x959595, 0x505050],
+    },
+    swamp: {
+      bases: [0x3a5c3a, 0x3d5a30, 0x354e35, 0x425838, 0x384f2e, 0x3e5535],
+      edge: 0x2a3f2a,
+      details: [0x2a3a2a, 0x50a050, 0x4a5a2a],
+    },
+    volcanic_wastes: {
+      bases: [0x4a2020, 0x522828, 0x442020, 0x3c1a1a, 0x4e2424, 0x401c1c],
+      edge: 0x2e1414,
+      details: [0xff4400, 0xff6600, 0x6b2a2a],
+    },
+    corrupted_lands: {
+      bases: [0x2a0048, 0x300055, 0x250040, 0x350060, 0x2d004d, 0x320058],
+      edge: 0x1a0030,
+      details: [0x8b00ff, 0xcc44ff, 0x500080],
+    },
   };
 
   /** Simple deterministic hash for tile variation */
@@ -346,8 +369,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Draw all tiles in a chunk as a single Graphics object with visual variety.
-   * Resource nodes are still individual sprites for interaction.
+   * Draw all tiles in a chunk as a single Graphics object.
+   * Each tile is a full filled diamond with edge shading and detail variety.
    */
   private renderChunk(cx: number, cy: number): void {
     const chunk = this.worldSystem.getChunk(cx, cy);
@@ -355,8 +378,8 @@ export class GameScene extends Phaser.Scene {
     gfx.setDepth(-10000);
 
     const resourceSprites: Phaser.GameObjects.Sprite[] = [];
-    const hw = TILE_WIDTH / 2; // 24
-    const hh = TILE_HEIGHT / 2; // 12
+    const hw = TILE_WIDTH / 2;
+    const hh = TILE_HEIGHT / 2;
 
     for (let row = 0; row < CHUNK_SIZE; row++) {
       for (let col = 0; col < CHUNK_SIZE; col++) {
@@ -367,47 +390,54 @@ export class GameScene extends Phaser.Scene {
         const worldY = absY * TILE_HEIGHT;
         const { sx, sy } = worldToScreen(worldX, worldY);
 
-        const palette = GameScene.BIOME_PALETTES[tile.biomeId] ?? GameScene.BIOME_PALETTES.forest;
+        const ground = GameScene.BIOME_GROUNDS[tile.biomeId] ?? GameScene.BIOME_GROUNDS.forest;
         const h = GameScene.tileHash(absX, absY);
-        const h2 = GameScene.tileHash(absX + 1000, absY + 1000);
-        const h3 = GameScene.tileHash(absX + 2000, absY + 2000);
+        const h2 = GameScene.tileHash(absX + 997, absY + 1013);
+        const h3 = GameScene.tileHash(absX + 2003, absY + 2017);
 
-        // Pick variant colors based on hash — slight variation per tile
-        const topColor = h < 0.3 ? palette[1] : h < 0.6 ? palette[3] : palette[4];
-        const botColor = h < 0.4 ? palette[2] : h < 0.7 ? palette[5] : palette[2];
+        // Pick base color from palette using hash
+        const baseColor = ground.bases[Math.floor(h * ground.bases.length)];
 
-        // Top half
-        gfx.fillStyle(topColor);
-        gfx.beginPath();
-        gfx.moveTo(sx, sy - hh);
-        gfx.lineTo(sx + hw, sy);
-        gfx.lineTo(sx, sy);
-        gfx.lineTo(sx - hw, sy);
-        gfx.closePath();
-        gfx.fillPath();
-
-        // Bottom half
-        gfx.fillStyle(botColor);
-        gfx.beginPath();
-        gfx.moveTo(sx - hw, sy);
-        gfx.lineTo(sx, sy);
-        gfx.lineTo(sx + hw, sy);
-        gfx.lineTo(sx, sy + hh);
-        gfx.closePath();
-        gfx.fillPath();
-
-        // Edge outline
-        gfx.lineStyle(1, 0x1a1a2e, 0.2);
+        // Full diamond fill — single color, no hard split
+        gfx.fillStyle(baseColor);
         gfx.beginPath();
         gfx.moveTo(sx, sy - hh);
         gfx.lineTo(sx + hw, sy);
         gfx.lineTo(sx, sy + hh);
         gfx.lineTo(sx - hw, sy);
         gfx.closePath();
+        gfx.fillPath();
+
+        // Subtle top-left highlight (light overlay on upper-left quadrant)
+        gfx.fillStyle(0xffffff, 0.06);
+        gfx.beginPath();
+        gfx.moveTo(sx, sy - hh);
+        gfx.lineTo(sx, sy);
+        gfx.lineTo(sx - hw, sy);
+        gfx.closePath();
+        gfx.fillPath();
+
+        // Subtle bottom-right shadow
+        gfx.fillStyle(0x000000, 0.08);
+        gfx.beginPath();
+        gfx.moveTo(sx + hw, sy);
+        gfx.lineTo(sx, sy);
+        gfx.lineTo(sx, sy + hh);
+        gfx.closePath();
+        gfx.fillPath();
+
+        // Thin edge lines on right & bottom edges only (subtle depth)
+        gfx.lineStyle(1, ground.edge, 0.4);
+        gfx.beginPath();
+        gfx.moveTo(sx + hw, sy);
+        gfx.lineTo(sx, sy + hh);
+        gfx.lineTo(sx - hw, sy);
         gfx.strokePath();
 
-        // Per-biome detail decorations
-        this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, h, h2, h3);
+        // Per-biome detail decorations on ~35% of tiles
+        if (h2 < 0.35) {
+          this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, ground.details, h, h2, h3);
+        }
 
         // Resource node sprite
         if (tile.resourceNodeId) {
@@ -434,79 +464,63 @@ export class GameScene extends Phaser.Scene {
     this.renderedChunks.set(chunkKey(cx, cy), { tileGraphics: gfx, resourceSprites });
   }
 
-  /** Draw small detail marks on tiles for visual variety */
+  /** Draw small detail marks on tiles */
   private drawTileDetails(
     gfx: Phaser.GameObjects.Graphics,
     sx: number, sy: number,
     hw: number, hh: number,
     biome: string,
+    detailColors: number[],
     h: number, h2: number, h3: number,
   ): void {
-    // Only some tiles get detail (keep it sparse)
-    if (h > 0.6) return;
-
-    // Offset positions within the diamond (isometric-safe, staying inside the tile)
-    const dx1 = (h2 - 0.5) * hw * 0.6;
-    const dy1 = (h3 - 0.5) * hh * 0.5;
-    const dx2 = (h - 0.5) * hw * 0.4;
-    const dy2 = (h2 - 0.5) * hh * 0.3;
+    // Position offsets within diamond (kept well inside to avoid edge bleed)
+    const dx1 = (h - 0.5) * hw * 0.5;
+    const dy1 = (h3 - 0.5) * hh * 0.4;
 
     switch (biome) {
       case 'forest': {
-        // Grass tufts — small "V" shapes
-        gfx.lineStyle(1, 0x4a9a52, 0.6);
-        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1, sy + dy1 - 3);
-        gfx.lineBetween(sx + dx1, sy + dy1 - 3, sx + dx1 + 2, sy + dy1);
-        if (h < 0.25) {
-          // Small flowers on some tiles
-          gfx.fillStyle(h3 < 0.5 ? 0xf0c040 : 0xe06060, 0.7);
-          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
+        // Grass tufts
+        gfx.lineStyle(1, detailColors[0], 0.5);
+        gfx.lineBetween(sx + dx1 - 1, sy + dy1, sx + dx1, sy + dy1 - 2);
+        gfx.lineBetween(sx + dx1, sy + dy1 - 2, sx + dx1 + 1, sy + dy1);
+        if (h2 < 0.12) {
+          // Rare flower
+          gfx.fillStyle(h3 < 0.5 ? detailColors[2] : detailColors[3], 0.7);
+          gfx.fillRect(sx + dx1, sy + dy1 - 1, 1, 1);
         }
         break;
       }
       case 'rocky_highlands': {
-        // Pebbles — small dots
-        gfx.fillStyle(0x707070, 0.5);
+        // Pebble
+        gfx.fillStyle(detailColors[0], 0.4);
         gfx.fillRect(sx + dx1, sy + dy1, 2, 1);
-        if (h < 0.3) {
-          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
-          // Crack line
-          gfx.lineStyle(1, 0x484848, 0.4);
-          gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 2);
+        if (h2 < 0.15) {
+          // Crack
+          gfx.lineStyle(1, detailColors[2], 0.3);
+          gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 3, sy + dy1 + 1);
         }
         break;
       }
       case 'swamp': {
-        // Puddle — small dark ellipse
-        gfx.fillStyle(0x2a3a2a, 0.4);
-        gfx.fillRect(sx + dx1 - 2, sy + dy1, 5, 2);
-        if (h < 0.2) {
-          // Lily pad dot
-          gfx.fillStyle(0x50a050, 0.6);
-          gfx.fillRect(sx + dx1, sy + dy1, 2, 1);
-        }
+        // Dark water patch
+        gfx.fillStyle(detailColors[0], 0.35);
+        gfx.fillRect(sx + dx1 - 1, sy + dy1, 3, 1);
         break;
       }
       case 'volcanic_wastes': {
-        // Cracks with glow
-        gfx.lineStyle(1, 0xff4400, 0.3);
-        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 5, sy + dy1 + 2);
-        if (h < 0.2) {
-          // Ember dot
-          gfx.fillStyle(0xff6600, 0.5);
-          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
+        // Lava crack
+        gfx.lineStyle(1, detailColors[0], 0.25);
+        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 3, sy + dy1 + 1);
+        if (h2 < 0.1) {
+          gfx.fillStyle(detailColors[1], 0.4);
+          gfx.fillRect(sx + dx1 + 1, sy + dy1, 1, 1);
         }
         break;
       }
       case 'corrupted_lands': {
-        // Corruption veins
-        gfx.lineStyle(1, 0x8b00ff, 0.3);
-        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 1);
-        if (h < 0.15) {
-          // Glowing rune dot
-          gfx.fillStyle(0xcc44ff, 0.5);
-          gfx.fillRect(sx + dx2, sy + dy2, 2, 2);
-        }
+        // Vein
+        gfx.lineStyle(1, detailColors[0], 0.2);
+        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 3, sy + dy1 + 1);
         break;
       }
     }
