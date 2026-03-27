@@ -33,6 +33,15 @@ describe('CraftingSystem', () => {
     expect(crafting.canCraft('wooden_sword', inv, known, 'hand')).toBe(false);
     expect(crafting.canCraft('wooden_sword', inv, known, 'workbench')).toBe(true);
   });
+  it('higher-tier stations can craft lower-tier recipes', () => {
+    const { crafting } = setup();
+    const inv: InventorySlot[] = [{ itemId: 'wood', count: 10 }];
+    const known = new Set(['wood_plank']);
+    // wood_plank requires 'hand' — workbench and forge should also work
+    expect(crafting.canCraft('wood_plank', inv, known, 'hand')).toBe(true);
+    expect(crafting.canCraft('wood_plank', inv, known, 'workbench')).toBe(true);
+    expect(crafting.canCraft('wood_plank', inv, known, 'forge')).toBe(true);
+  });
   it('craft removes ingredients and adds output', () => {
     const { crafting } = setup();
     const inv: InventorySlot[] = [{ itemId: 'wood', count: 10 }];

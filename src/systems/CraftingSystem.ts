@@ -4,14 +4,33 @@ import { EventBus } from './EventBus';
 import { ItemSystem } from './ItemSystem';
 import { RECIPE_DEFINITIONS, getRecipeDef } from '@/config/recipes';
 
+/**
+ * Station hierarchy — higher-tier stations can craft everything a lower-tier one can.
+ * e.g. a workbench can also craft "hand" recipes, a forge can craft workbench + hand, etc.
+ */
+const STATION_INCLUDES: Record<CraftingStation, CraftingStation[]> = {
+  hand: ['hand'],
+  campfire: ['campfire', 'hand'],
+  workbench: ['workbench', 'hand'],
+  forge: ['forge', 'workbench', 'hand'],
+  alchemy_table: ['alchemy_table', 'hand'],
+  magma_forge: ['magma_forge', 'forge', 'workbench', 'hand'],
+  void_altar: ['void_altar', 'hand'],
+};
+
 export class CraftingSystem {
   constructor(private eventBus: EventBus, private itemSystem: ItemSystem) {}
+
+  /** Check if a station can craft recipes for a given required station */
+  stationCanCraft(currentStation: CraftingStation, requiredStation: CraftingStation): boolean {
+    return (STATION_INCLUDES[currentStation] ?? [currentStation]).includes(requiredStation);
+  }
 
   canCraft(recipeId: string, inventory: InventorySlot[], knownRecipes: Set<string>, currentStation: CraftingStation): boolean {
     if (!knownRecipes.has(recipeId)) return false;
     const recipe = getRecipeDef(recipeId);
     if (!recipe) return false;
-    if (recipe.station !== currentStation) return false;
+    if (!this.stationCanCraft(currentStation, recipe.station)) return false;
     return this.itemSystem.hasItems(inventory, recipe.ingredients);
   }
 
