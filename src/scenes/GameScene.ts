@@ -18,6 +18,8 @@ import { UIManager } from '@/ui/UIManager';
 import { QuickInventory } from '@/ui/QuickInventory';
 import { InventoryPanel } from '@/ui/InventoryPanel';
 import { CraftingPanel } from '@/ui/CraftingPanel';
+import { NPCPanel } from '@/ui/NPCPanel';
+import { NPCState } from '@/types/entities';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
@@ -53,6 +55,9 @@ export class GameScene extends Phaser.Scene {
   private quickInventory!: QuickInventory;
   private inventoryPanel!: InventoryPanel;
   private craftingPanel!: CraftingPanel;
+  private npcPanel!: NPCPanel;
+
+  private activeNPCs: NPCState[] = [];
 
   private mobs: { state: MobState; sprite: Phaser.GameObjects.Sprite }[] = [];
   private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
@@ -179,6 +184,28 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
+    // NPC panel
+    this.npcPanel = new NPCPanel(this, this.npcSystem, this.itemSystem, this.eventBus);
+    this.uiManager.registerPanel('npc', this.npcPanel.getContainer());
+
+    // N key — toggle NPC panel
+    this.input.keyboard!.on('keydown-N', () => {
+      this.uiManager.togglePanel('npc');
+      if (this.uiManager.isOpen()) {
+        this.npcPanel.update(
+          this.player.inventory,
+          this.activeNPCs,
+          this.progression.getSave().unlockedNPCTypes,
+        );
+      }
+    });
+
+    // Auto-unlock woodcutter on first run
+    if (this.progression.getSave().unlockedNPCTypes.length === 0) {
+      this.progression.unlockNPCType('woodcutter');
+      this.progression.save();
+    }
+
     // Load starting recipes
     this.knownRecipes = new Set(this.progression.getStartingRecipeIds());
 
@@ -193,6 +220,7 @@ export class GameScene extends Phaser.Scene {
     this.resourceNodes = [];
     this.spawnedChunks = new Set();
     this.lastPlayerAttack = 0;
+    this.activeNPCs = [];
 
     // Move marker (small circle where you clicked)
     this.moveMarker = this.add.graphics();
@@ -323,8 +351,21 @@ export class GameScene extends Phaser.Scene {
     this.quickInventory.update(this.player.inventory);
     this.updateMobs(delta);
 
+    // Update NPC gathering
+    for (const npc of this.activeNPCs) {
+      this.npcSystem.updateGathering(npc, delta);
+    }
+
     if (this.inventoryPanel?.getContainer().visible) {
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    }
+
+    if (this.npcPanel?.getContainer().visible) {
+      this.npcPanel.update(
+        this.player.inventory,
+        this.activeNPCs,
+        this.progression.getSave().unlockedNPCTypes,
+      );
     }
   }
 
