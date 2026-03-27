@@ -19,6 +19,7 @@ import { QuickInventory } from '@/ui/QuickInventory';
 import { InventoryPanel } from '@/ui/InventoryPanel';
 import { CraftingPanel } from '@/ui/CraftingPanel';
 import { NPCPanel } from '@/ui/NPCPanel';
+import { MapPanel } from '@/ui/MapPanel';
 import { NPCState } from '@/types/entities';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
@@ -56,6 +57,7 @@ export class GameScene extends Phaser.Scene {
   private inventoryPanel!: InventoryPanel;
   private craftingPanel!: CraftingPanel;
   private npcPanel!: NPCPanel;
+  private mapPanel!: MapPanel;
 
   private activeNPCs: NPCState[] = [];
 
@@ -206,6 +208,18 @@ export class GameScene extends Phaser.Scene {
       this.progression.save();
     }
 
+    // Map panel
+    this.mapPanel = new MapPanel(this);
+    this.uiManager.registerPanel('map', this.mapPanel.getContainer());
+
+    // M key — toggle map panel
+    this.input.keyboard!.on('keydown-M', () => {
+      this.uiManager.togglePanel('map');
+      if (this.uiManager.isOpen()) {
+        this.mapPanel.update(this.currentChunkX, this.currentChunkY);
+      }
+    });
+
     // Load starting recipes
     this.knownRecipes = new Set(this.progression.getStartingRecipeIds());
 
@@ -328,10 +342,11 @@ export class GameScene extends Phaser.Scene {
       this.toggleBuildMenu();
     });
 
-    // Listen for biome changes
+    // Listen for biome changes and map exploration
     this.eventBus.on('chunk-entered', (eventData) => {
       const biome = BIOME_DEFINITIONS.find(b => b.id === eventData.biomeId);
       this.currentBiomeName = biome?.name ?? 'Unknown';
+      this.mapPanel?.addExploredChunk(eventData.chunkX, eventData.chunkY, eventData.biomeId);
     });
 
     // Listen for item pickups — trigger recipe discovery
@@ -366,6 +381,10 @@ export class GameScene extends Phaser.Scene {
         this.activeNPCs,
         this.progression.getSave().unlockedNPCTypes,
       );
+    }
+
+    if (this.mapPanel?.getContainer().visible) {
+      this.mapPanel.update(this.currentChunkX, this.currentChunkY);
     }
   }
 
