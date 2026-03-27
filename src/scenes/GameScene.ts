@@ -19,6 +19,7 @@ import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
 import { ResourceNodeState } from '@/entities/ResourceNode';
+import { getItemDef } from '@/config/items';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
@@ -52,6 +53,8 @@ export class GameScene extends Phaser.Scene {
   private gatherTarget: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite } | null = null;
   private moveMarker!: Phaser.GameObjects.Graphics;
   private hoveredResource: Phaser.GameObjects.Sprite | null = null;
+  private tooltip!: Phaser.GameObjects.Text;
+  private mobHpBars = new Map<string, Phaser.GameObjects.Graphics>();
 
   private renderedChunks = new Map<string, RenderedChunk>();
   private currentChunkX = 0;
@@ -108,6 +111,19 @@ export class GameScene extends Phaser.Scene {
     this.moveMarker.setDepth(9000);
     this.moveMarker.setVisible(false);
 
+    // Hover tooltip
+    this.tooltip = this.add.text(0, 0, '', {
+      fontSize: '10px',
+      color: '#ffffff',
+      backgroundColor: '#000000aa',
+      padding: { x: 4, y: 2 },
+      stroke: '#000000',
+      strokeThickness: 1,
+    }).setDepth(9999).setVisible(false).setScrollFactor(0);
+
+    // Clear old HP bars
+    this.mobHpBars = new Map();
+
     // Render initial chunks
     this.updateChunks();
 
@@ -134,7 +150,7 @@ export class GameScene extends Phaser.Scene {
       this.showMoveMarker(pointer.worldX, pointer.worldY, false);
     });
 
-    // Hover detection for resources
+    // Hover detection for resources and mobs
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       // Reset previous hover
       if (this.hoveredResource) {
@@ -142,6 +158,23 @@ export class GameScene extends Phaser.Scene {
         this.hoveredResource = null;
       }
       this.input.setDefaultCursor('default');
+      this.tooltip.setVisible(false);
+
+      // Check mob hover first (higher priority)
+      for (const mob of this.mobs) {
+        if (mob.state.stats.health <= 0) continue;
+        const d = distance(pointer.worldX, pointer.worldY, mob.sprite.x, mob.sprite.y - 10);
+        if (d < 25) {
+          const def = MOB_DEFINITIONS.find(m => m.id === mob.state.typeId);
+          const name = def?.name ?? 'Unknown';
+          const hp = `${Math.ceil(mob.state.stats.health)}/${mob.state.stats.maxHealth}`;
+          this.tooltip.setText(`${name}  HP: ${hp}`);
+          this.tooltip.setPosition(pointer.x + 12, pointer.y - 8);
+          this.tooltip.setVisible(true);
+          this.input.setDefaultCursor('crosshair');
+          return;
+        }
+      }
 
       // Check resource hover
       for (const res of this.resourceNodes) {
@@ -150,8 +183,13 @@ export class GameScene extends Phaser.Scene {
         if (d < 30) {
           res.sprite.setTint(0xffffff);
           this.hoveredResource = res.sprite;
+          const itemDef = getItemDef(res.state.itemId);
+          const name = itemDef?.name ?? res.state.itemId;
+          this.tooltip.setText(`${name}  (${res.state.remaining} left)`);
+          this.tooltip.setPosition(pointer.x + 12, pointer.y - 8);
+          this.tooltip.setVisible(true);
           this.input.setDefaultCursor('pointer');
-          break;
+          return;
         }
       }
     });
@@ -248,12 +286,13 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private showFloatingText(x: number, y: number, text: string): void {
+  private showFloatingText(x: number, y: number, text: string, color = '#ffffff'): void {
     const floatText = this.add.text(x, y, text, {
       fontSize: '10px',
-      color: '#ffffff',
+      color,
       stroke: '#000000',
       strokeThickness: 2,
+      fontStyle: 'bold',
     }).setOrigin(0.5).setDepth(9999);
 
     this.tweens.add({
@@ -263,6 +302,42 @@ export class GameScene extends Phaser.Scene {
       duration: 800,
       onComplete: () => floatText.destroy(),
     });
+  }
+
+  /** Draw/update a small HP bar above a mob (only shown when damaged) */
+  private updateMobHpBar(mob: { state: MobState; sprite: Phaser.GameObjects.Sprite }): void {
+    const { stats } = mob.state;
+    const hpPct = stats.health / stats.maxHealth;
+
+    // Don't show HP bar at full health
+    if (hpPct >= 1) {
+      const existing = this.mobHpBars.get(mob.state.id);
+      if (existing) { existing.destroy(); this.mobHpBars.delete(mob.state.id); }
+      return;
+    }
+
+    let bar = this.mobHpBars.get(mob.state.id);
+    if (!bar) {
+      bar = this.add.graphics();
+      this.mobHpBars.set(mob.state.id, bar);
+    }
+
+    const barW = 20;
+    const barH = 3;
+    const bx = mob.sprite.x - barW / 2;
+    const by = mob.sprite.y - mob.sprite.height - 6;
+
+    bar.clear();
+    bar.setDepth(mob.sprite.y + 1);
+
+    // Background
+    bar.fillStyle(0x000000, 0.6);
+    bar.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+
+    // Health fill — green to red
+    const color = hpPct > 0.5 ? 0x44cc44 : hpPct > 0.25 ? 0xccaa22 : 0xcc3333;
+    bar.fillStyle(color);
+    bar.fillRect(bx, by, barW * hpPct, barH);
   }
 
   private showMoveMarker(x: number, y: number, isGather: boolean): void {
@@ -555,8 +630,24 @@ export class GameScene extends Phaser.Scene {
       const dir = MobAI.getMovementDirection(mob.state, playerPos);
       const speed = mob.state.stats.speed * (delta / 1000);
       const isMoving = dir.dx !== 0 || dir.dy !== 0;
-      mob.sprite.x += dir.dx * speed;
-      mob.sprite.y += dir.dy * speed;
+
+      // When attacking, maintain offset from player instead of overlapping
+      if (mob.state.aiState === 'attack') {
+        const dx = mob.sprite.x - this.playerSprite.x;
+        const dy = mob.sprite.y - this.playerSprite.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const desiredDist = mob.state.attackRange * 0.7;
+        if (dist < desiredDist && dist > 0) {
+          // Push mob outward to maintain spacing
+          const pushX = (dx / dist) * desiredDist;
+          const pushY = (dy / dist) * desiredDist;
+          mob.sprite.x = this.playerSprite.x + pushX;
+          mob.sprite.y = this.playerSprite.y + pushY;
+        }
+      } else {
+        mob.sprite.x += dir.dx * speed;
+        mob.sprite.y += dir.dy * speed;
+      }
       mob.state.position.x = mob.sprite.x;
       mob.state.position.y = mob.sprite.y;
 
@@ -565,11 +656,10 @@ export class GameScene extends Phaser.Scene {
       else if (dir.dx > 0.1) mob.sprite.setFlipX(false);
 
       // Bob animation when moving (squash/stretch using scaleY)
-      if (isMoving) {
+      if (isMoving && mob.state.aiState !== 'attack') {
         const bobPhase = Math.sin(this.time.now * 0.01 + mob.state.position.x) * 0.08;
         mob.sprite.setScale(1 - bobPhase * 0.5, 1 + bobPhase);
       } else {
-        // Gentle idle breathing
         const breathe = Math.sin(this.time.now * 0.003 + mob.state.position.x) * 0.03;
         mob.sprite.setScale(1, 1 + breathe);
       }
@@ -577,12 +667,21 @@ export class GameScene extends Phaser.Scene {
       // Update depth for entity sorting
       mob.sprite.setDepth(mob.sprite.y);
 
+      // Draw HP bar above mob (only if damaged)
+      this.updateMobHpBar(mob);
+
       // Mob auto-attack player
       if (mob.state.aiState === 'attack') {
         const now = this.time.now;
         if (this.combatSystem.canAttack(mob.state.stats.attackSpeed, mob.state.lastAttackTime, now)) {
           this.combatSystem.applyDamage(mob.state.id, 'player', mob.state.stats, this.player.stats);
           mob.state.lastAttackTime = now;
+          // Flash mob red on hit
+          mob.sprite.setTint(0xff4444);
+          this.time.delayedCall(100, () => mob.sprite.clearTint());
+          // Flash player red
+          this.playerSprite.setTint(0xff4444);
+          this.time.delayedCall(100, () => this.playerSprite.clearTint());
           if (this.player.stats.health <= 0) {
             this.endRun('Killed by ' + (def.name ?? 'a mob'));
           }
@@ -593,10 +692,20 @@ export class GameScene extends Phaser.Scene {
       if (distToPlayer < 40) {
         const now = this.time.now;
         if (this.combatSystem.canAttack(this.player.stats.attackSpeed, this.lastPlayerAttack, now)) {
-          this.combatSystem.applyDamage('player', mob.state.id, this.player.stats, mob.state.stats);
+          const dmg = this.combatSystem.applyDamage('player', mob.state.id, this.player.stats, mob.state.stats);
           this.lastPlayerAttack = now;
+          // Show damage number
+          this.showFloatingText(mob.sprite.x, mob.sprite.y - 20, `-${dmg}`, '#ff6666');
+          mob.sprite.setTint(0xff4444);
+          this.time.delayedCall(100, () => {
+            if (mob.state.stats.health > 0) mob.sprite.clearTint();
+          });
           if (mob.state.stats.health <= 0) {
             mob.sprite.setAlpha(0.3);
+            mob.sprite.clearTint();
+            // Remove HP bar
+            const hpBar = this.mobHpBars.get(mob.state.id);
+            if (hpBar) { hpBar.destroy(); this.mobHpBars.delete(mob.state.id); }
             this.eventBus.emit('mob-killed', { mobId: mob.state.id, mobTypeId: mob.state.typeId });
             for (const drop of def.drops) {
               if (Math.random() <= drop.chance) {
