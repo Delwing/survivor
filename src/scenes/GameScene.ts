@@ -15,6 +15,7 @@ import { PlayerState, MobState } from '@/types/entities';
 import { HUD } from '@/ui/HUD';
 import { AbilityBar, AbilitySlot } from '@/ui/AbilityBar';
 import { UIManager } from '@/ui/UIManager';
+import { QuickInventory } from '@/ui/QuickInventory';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
@@ -45,6 +46,7 @@ export class GameScene extends Phaser.Scene {
   private hud!: HUD;
   private abilityBar!: AbilityBar;
   private uiManager!: UIManager;
+  private quickInventory!: QuickInventory;
 
   private mobs: { state: MobState; sprite: Phaser.GameObjects.Sprite }[] = [];
   private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
@@ -90,6 +92,7 @@ export class GameScene extends Phaser.Scene {
       { id: 'consumable', label: '🧪', cooldown: 0, maxCooldown: 1000, onActivate: () => {} },
     ];
     this.abilityBar = new AbilityBar(this, abilities);
+    this.quickInventory = new QuickInventory(this);
 
     // Load starting recipes
     this.knownRecipes = new Set(this.progression.getStartingRecipeIds());
@@ -213,6 +216,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
     this.hud.update(this.player, this.currentBiomeName);
+    this.quickInventory.update(this.player.inventory);
     this.updateMobs(delta);
   }
 
