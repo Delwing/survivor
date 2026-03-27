@@ -22,10 +22,9 @@ import { ResourceNodeState } from '@/entities/ResourceNode';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
-// A rendered chunk: one baked image for tiles + individual sprites for resource nodes
+// A rendered chunk: tile sprites + resource node sprites
 interface RenderedChunk {
-  image: Phaser.GameObjects.Image;
-  resourceSprites: Phaser.GameObjects.Sprite[];
+  sprites: Phaser.GameObjects.Sprite[];
 }
 
 export class GameScene extends Phaser.Scene {
@@ -307,11 +306,16 @@ export class GameScene extends Phaser.Scene {
     // Remove old chunks
     for (const [key, rendered] of this.renderedChunks) {
       if (!neededKeys.has(key)) {
-        rendered.image.destroy();
-        rendered.resourceSprites.forEach(s => s.destroy());
+        rendered.sprites.forEach(s => s.destroy());
         this.renderedChunks.delete(key);
       }
     }
+
+    // Remove resource nodes from unloaded chunks
+    this.resourceNodes = this.resourceNodes.filter(r => {
+      if (r.sprite.active) return true;
+      return false;
+    });
 
     // Add new chunks
     for (const key of neededKeys) {
@@ -323,81 +327,47 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /**
-   * Bake an entire chunk's tiles into a single RenderTexture.
-   * Resource nodes are kept as individual sprites for interaction.
-   */
   private renderChunk(cx: number, cy: number): void {
     const chunk = this.worldSystem.getChunk(cx, cy);
-
-    // Calculate bounding box of all tile positions in this chunk
-    const positions: { sx: number; sy: number; row: number; col: number }[] = [];
-    let minSx = Infinity, minSy = Infinity, maxSx = -Infinity, maxSy = -Infinity;
+    const sprites: Phaser.GameObjects.Sprite[] = [];
 
     for (let row = 0; row < CHUNK_SIZE; row++) {
       for (let col = 0; col < CHUNK_SIZE; col++) {
+        const tile = chunk.tiles[row][col];
         const worldX = (cx * CHUNK_SIZE + col) * TILE_WIDTH / 2;
         const worldY = (cy * CHUNK_SIZE + row) * TILE_HEIGHT;
         const { sx, sy } = worldToScreen(worldX, worldY);
-        positions.push({ sx, sy, row, col });
-        minSx = Math.min(minSx, sx - TILE_WIDTH / 2);
-        minSy = Math.min(minSy, sy - TILE_HEIGHT / 2);
-        maxSx = Math.max(maxSx, sx + TILE_WIDTH / 2);
-        maxSy = Math.max(maxSy, sy + TILE_HEIGHT / 2);
+
+        // Tile sprite
+        const tileKey = `tile_${tile.biomeId}`;
+        const useKey = this.textures.exists(tileKey) ? tileKey : 'tile';
+        const tileSprite = this.add.sprite(sx, sy, useKey);
+        tileSprite.setDepth(-10000 + sy);
+        sprites.push(tileSprite);
+
+        // Resource node
+        if (tile.resourceNodeId) {
+          const resKey = `res_${tile.resourceNodeId}`;
+          const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
+          const resSprite = this.add.sprite(sx, sy - 8, resUseKey);
+          resSprite.setOrigin(0.5, 1);
+          resSprite.setDepth(sy);
+          sprites.push(resSprite);
+
+          this.resourceNodes.push({
+            state: {
+              id: `res-${cx}-${row}-${col}`,
+              itemId: tile.resourceNodeId,
+              position: { x: sx, y: sy - 8 },
+              remaining: 3 + Math.floor(Math.random() * 5),
+            },
+            sprite: resSprite,
+          });
+        }
       }
     }
 
-    const rtWidth = Math.ceil(maxSx - minSx) + 2;
-    const rtHeight = Math.ceil(maxSy - minSy) + 2;
-    const texKey = `chunk_${cx}_${cy}`;
-
-    // Create a render texture and draw all tiles into it
-    const rt = this.add.renderTexture(0, 0, rtWidth, rtHeight);
-    rt.setVisible(false); // we'll use a generated texture instead
-
-    for (const pos of positions) {
-      const tile = chunk.tiles[pos.row][pos.col];
-      const tileKey = `tile_${tile.biomeId}`;
-      const useKey = this.textures.exists(tileKey) ? tileKey : 'tile';
-      const localX = pos.sx - minSx;
-      const localY = pos.sy - minSy;
-      rt.draw(useKey, localX, localY);
-    }
-
-    // Save as a static texture and create an image from it
-    rt.saveTexture(texKey);
-    rt.destroy();
-
-    const chunkImage = this.add.image(minSx, minSy, texKey);
-    chunkImage.setOrigin(0, 0);
-    chunkImage.setDepth(-10000);
-
-    // Resource node sprites (only ~15-30% of tiles have them, so manageable count)
-    const resourceSprites: Phaser.GameObjects.Sprite[] = [];
-    for (const pos of positions) {
-      const tile = chunk.tiles[pos.row][pos.col];
-      if (tile.resourceNodeId) {
-        const resKey = `res_${tile.resourceNodeId}`;
-        const useKey = this.textures.exists(resKey) ? resKey : 'resource_node';
-        const resSprite = this.add.sprite(pos.sx, pos.sy - 8, useKey);
-        resSprite.setOrigin(0.5, 1);
-        resSprite.setDepth(pos.sy);
-        resourceSprites.push(resSprite);
-
-        // Track as interactive resource node
-        this.resourceNodes.push({
-          state: {
-            id: `res-${cx}-${pos.row}-${pos.col}`,
-            itemId: tile.resourceNodeId,
-            position: { x: pos.sx, y: pos.sy - 8 },
-            remaining: 3 + Math.floor(Math.random() * 5),
-          },
-          sprite: resSprite,
-        });
-      }
-    }
-
-    this.renderedChunks.set(chunkKey(cx, cy), { image: chunkImage, resourceSprites });
+    this.renderedChunks.set(chunkKey(cx, cy), { sprites });
   }
 
   private spawnEntitiesForChunk(cx: number, cy: number): void {
