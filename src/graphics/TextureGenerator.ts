@@ -198,7 +198,7 @@ function drawIsoDiamond(scene: Phaser.Scene, key: string, fill: string, highligh
  *   player_f6, player_f7: gather
  */
 function generatePlayerSpritesheet(scene: Phaser.Scene): void {
-  const fw = 12, fh = 18;
+  const fw = 16, fh = 24;
   const frameDefs: [number, PlayerFrameOpts][] = [
     [0, { legOffset: 0, bodyBob: 0, armMode: 'normal' }],
     [1, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
@@ -232,79 +232,90 @@ interface PlayerFrameOpts {
 }
 
 function drawPlayerFrame(ctx: CanvasRenderingContext2D, frameIdx: number, opts: PlayerFrameOpts): void {
-  const fw = 12;
+  const fw = 16;
+  const fh = 24;
   const ox = frameIdx * fw; // x offset for this frame
   const by = opts.bodyBob;  // body vertical shift
 
-  // Shadow
-  rect(ctx, ox + 3, 16, 6, 2, '#00000040');
+  // Shadow (wider ellipse under feet)
+  rect(ctx, ox + 3, 21, 10, 2, '#00000040');
 
   // Left leg
   const llOff = opts.legOffset === -1 ? -1 : (opts.legOffset === 1 ? 1 : 0);
-  rect(ctx, ox + 3, 12 + llOff, 2, 2, P.brownLight);
-  rect(ctx, ox + 3, 14 + llOff, 2, 2, P.brownDark);
+  rect(ctx, ox + 4, 16 + llOff, 3, 3, P.brownLight);   // thigh
+  rect(ctx, ox + 4, 19 + llOff, 3, 2, P.brownDark);    // boot
 
   // Right leg
   const rlOff = opts.legOffset === 1 ? -1 : (opts.legOffset === -1 ? 1 : 0);
-  rect(ctx, ox + 7, 12 + rlOff, 2, 2, P.brownLight);
-  rect(ctx, ox + 7, 14 + rlOff, 2, 2, P.brownDark);
+  rect(ctx, ox + 9, 16 + rlOff, 3, 3, P.brownLight);
+  rect(ctx, ox + 9, 19 + rlOff, 3, 2, P.brownDark);
 
-  // Body
-  rect(ctx, ox + 3, 7 + by, 6, 5, P.blue);
-  rect(ctx, ox + 3, 10 + by, 6, 2, P.blueDark);
+  // Body — wider torso
+  rect(ctx, ox + 4, 9 + by, 8, 7, P.blue);
+  rect(ctx, ox + 4, 13 + by, 8, 3, P.blueDark);
   // Belt
-  rect(ctx, ox + 3, 11 + by, 6, 1, P.brown);
+  rect(ctx, ox + 4, 15 + by, 8, 1, P.brown);
+  // Shirt highlight
+  rect(ctx, ox + 5, 9 + by, 3, 3, P.blueLight);
 
-  // Arms depend on mode
+  // Arms depend on mode — 2px wide arms with visible hands
   switch (opts.armMode) {
     case 'normal':
-      rect(ctx, ox + 2, 7 + by, 1, 4, P.blue);
-      rect(ctx, ox + 9, 7 + by, 1, 4, P.blue);
-      px(ctx, ox + 2, 11 + by, P.skin);
-      px(ctx, ox + 9, 11 + by, P.skin);
+      rect(ctx, ox + 2, 9 + by, 2, 5, P.blue);
+      rect(ctx, ox + 12, 9 + by, 2, 5, P.blue);
+      rect(ctx, ox + 2, 14 + by, 2, 2, P.skin);   // left hand
+      rect(ctx, ox + 12, 14 + by, 2, 2, P.skin);  // right hand
       break;
     case 'swing_left':
-      rect(ctx, ox + 1, 7 + by, 1, 3, P.blue);  // left arm forward
-      rect(ctx, ox + 9, 8 + by, 1, 4, P.blue);   // right arm back
-      px(ctx, ox + 1, 10 + by, P.skin);
-      px(ctx, ox + 9, 12 + by, P.skin);
+      rect(ctx, ox + 1, 9 + by, 2, 4, P.blue);    // left arm forward
+      rect(ctx, ox + 13, 10 + by, 2, 5, P.blue);  // right arm back
+      rect(ctx, ox + 1, 13 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, 15 + by, 2, 2, P.skin);
       break;
     case 'swing_right':
-      rect(ctx, ox + 2, 8 + by, 1, 4, P.blue);   // left arm back
-      rect(ctx, ox + 10, 7 + by, 1, 3, P.blue);  // right arm forward
-      px(ctx, ox + 2, 12 + by, P.skin);
-      px(ctx, ox + 10, 10 + by, P.skin);
+      rect(ctx, ox + 2, 10 + by, 2, 5, P.blue);   // left arm back
+      rect(ctx, ox + 13, 9 + by, 2, 4, P.blue);   // right arm forward
+      rect(ctx, ox + 2, 15 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, 13 + by, 2, 2, P.skin);
       break;
     case 'gather':
-      rect(ctx, ox + 1, 9 + by, 2, 1, P.blue);   // arms reaching forward-down
-      rect(ctx, ox + 9, 9 + by, 2, 1, P.blue);
-      px(ctx, ox + 1, 10 + by, P.skin);
-      px(ctx, ox + 10, 10 + by, P.skin);
+      rect(ctx, ox + 1, 12 + by, 3, 2, P.blue);   // arms reaching forward-down
+      rect(ctx, ox + 12, 12 + by, 3, 2, P.blue);
+      rect(ctx, ox + 1, 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, 14 + by, 2, 2, P.skin);
       break;
     case 'gather_up':
-      rect(ctx, ox + 1, 8 + by, 2, 1, P.blue);   // arms reaching up
-      rect(ctx, ox + 9, 8 + by, 2, 1, P.blue);
-      px(ctx, ox + 1, 9 + by, P.skin);
-      px(ctx, ox + 10, 9 + by, P.skin);
+      rect(ctx, ox + 1, 10 + by, 3, 2, P.blue);   // arms reaching up
+      rect(ctx, ox + 12, 10 + by, 3, 2, P.blue);
+      rect(ctx, ox + 1, 9 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, 9 + by, 2, 2, P.skin);
       break;
   }
 
-  // Head
-  rect(ctx, ox + 4, 2 + by, 4, 5, P.skin);
-  rect(ctx, ox + 4, 5 + by, 4, 2, P.skinShade);
+  // Head — 6px wide
+  rect(ctx, ox + 5, 3 + by, 6, 6, P.skin);
+  rect(ctx, ox + 5, 7 + by, 6, 2, P.skinShade);  // chin/jaw shadow
 
-  // Eyes
-  px(ctx, ox + 5, 4 + by, P.outline);
-  px(ctx, ox + 7, 4 + by, P.outline);
+  // Eyes — 2 dots with 1px gap
+  px(ctx, ox + 6, 5 + by, P.outline);
+  px(ctx, ox + 7, 5 + by, P.outline);
+  px(ctx, ox + 9, 5 + by, P.outline);
+  px(ctx, ox + 10, 5 + by, P.outline);
 
-  // Hair
-  rect(ctx, ox + 4, 1 + by, 4, 2, P.hair);
-  px(ctx, ox + 3, 2 + by, P.hair);
-  px(ctx, ox + 8, 2 + by, P.hair);
-  rect(ctx, ox + 4, 0 + by, 4, 1, P.hairLight);
+  // Mouth
+  px(ctx, ox + 7, 7 + by, P.skinShade);
+  px(ctx, ox + 8, 7 + by, P.skinShade);
+
+  // Hair — full cap
+  rect(ctx, ox + 5, 1 + by, 6, 3, P.hair);
+  px(ctx, ox + 4, 2 + by, P.hair);
+  px(ctx, ox + 4, 3 + by, P.hair);
+  px(ctx, ox + 11, 2 + by, P.hair);
+  px(ctx, ox + 11, 3 + by, P.hair);
+  rect(ctx, ox + 5, 0 + by, 6, 1, P.hairLight);  // top highlight
 
   // Outline this frame
-  drawFrameOutline(ctx, frameIdx * fw, 0, fw, 18, P.outline);
+  drawFrameOutline(ctx, frameIdx * fw, 0, fw, fh, P.outline);
 }
 
 /** Outline only within a specific frame region of the spritesheet. */
@@ -351,277 +362,442 @@ function generateMobTextures(scene: Phaser.Scene): void {
   drawBeast(scene, 'mob_lava_crawler', P.lavaDark, P.lavaLight);
   drawCorruptedNPC(scene);
 
-  // Generic fallback mob
-  const ctx = makeCanvas(scene, 'mob', 10, 10);
-  rect(ctx, 2, 2, 6, 6, P.red);
-  px(ctx, 3, 4, P.white);
-  px(ctx, 6, 4, P.white);
-  drawSpriteOutline(ctx, 10, 10, P.outline);
-  finalize(scene, 'mob');
+  // Generic fallback mob — 16x14
+  {
+    const ctx = makeCanvas(scene, 'mob', 16, 14);
+    rect(ctx, 3, 3, 10, 8, P.red);
+    rect(ctx, 4, 2, 8, 1, P.red);
+    rect(ctx, 4, 11, 8, 1, P.red);
+    rect(ctx, 4, 4, 3, 2, P.redLight);  // highlight
+    px(ctx, 5, 6, P.white);   // left eye
+    px(ctx, 10, 6, P.white);  // right eye
+    px(ctx, 5, 7, P.outline);
+    px(ctx, 10, 7, P.outline);
+    rect(ctx, 4, 13, 8, 1, '#00000020');
+    drawSpriteOutline(ctx, 16, 14, P.outline);
+    finalize(scene, 'mob');
+  }
 }
 
 function drawSlime(scene: Phaser.Scene): void {
-  const w = 12, h = 10;
+  const w = 18, h = 16;
   const ctx = makeCanvas(scene, 'mob_slime', w, h);
-  // Body blob
-  rect(ctx, 2, 4, 8, 5, P.slimeGreen);
-  rect(ctx, 3, 3, 6, 1, P.slimeGreen);
-  rect(ctx, 4, 2, 4, 1, P.slimeLight);
-  // Highlight
-  px(ctx, 4, 3, P.slimeLight);
-  px(ctx, 5, 3, P.slimeLight);
-  // Eyes
-  px(ctx, 4, 5, P.white);
-  px(ctx, 7, 5, P.white);
-  px(ctx, 4, 6, P.outline);
-  px(ctx, 7, 6, P.outline);
+  // Body blob — wider, squished shape
+  rect(ctx, 2, 6, 14, 7, P.slimeGreen);
+  rect(ctx, 3, 5, 12, 2, P.slimeGreen);
+  rect(ctx, 5, 3, 8, 3, P.slimeGreen);
+  rect(ctx, 7, 2, 4, 2, P.slimeLight);  // top highlight dome
+  // Inner highlight blob
+  rect(ctx, 5, 5, 5, 3, P.slimeLight);
+  px(ctx, 6, 4, P.slimeLight);
+  // Drip on bottom edges
+  px(ctx, 3, 13, P.slimeGreen);
+  px(ctx, 14, 13, P.slimeGreen);
+  // Eyes (2 wide)
+  rect(ctx, 5, 8, 3, 3, P.white);
+  rect(ctx, 10, 8, 3, 3, P.white);
+  rect(ctx, 6, 9, 2, 2, P.outline);   // pupils
+  rect(ctx, 11, 9, 2, 2, P.outline);
+  px(ctx, 6, 9, P.white);  // eye sparkle
+  px(ctx, 11, 9, P.white);
   // Shadow
-  rect(ctx, 3, 9, 6, 1, '#00000030');
+  rect(ctx, 3, 14, 12, 2, '#00000030');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_slime');
 }
 
 function drawRabbit(scene: Phaser.Scene): void {
-  const w = 10, h = 12;
+  const w = 14, h = 16;
   const ctx = makeCanvas(scene, 'mob_rabbit', w, h);
-  // Ears
-  rect(ctx, 3, 0, 1, 4, P.grayLight);
-  rect(ctx, 6, 0, 1, 4, P.grayLight);
+  // Ears — tall and thin
+  rect(ctx, 4, 0, 2, 6, P.grayLight);
+  px(ctx, 5, 1, P.skin);  // inner ear left
+  rect(ctx, 8, 0, 2, 6, P.grayLight);
+  px(ctx, 9, 1, P.skin);  // inner ear right
   // Head
-  rect(ctx, 3, 3, 4, 3, P.offWhite);
+  rect(ctx, 3, 5, 8, 5, P.offWhite);
+  rect(ctx, 4, 5, 6, 4, P.grayLight);
+  // Nose (pink dot)
+  px(ctx, 6, 8, P.skin);
+  px(ctx, 7, 8, P.skin);
   // Eyes
-  px(ctx, 4, 4, P.outline);
-  px(ctx, 6, 4, P.outline);
+  px(ctx, 5, 7, P.outline);
+  px(ctx, 9, 7, P.outline);
   // Body
-  rect(ctx, 2, 6, 6, 4, P.offWhite);
-  rect(ctx, 3, 6, 4, 4, P.grayLight);
+  rect(ctx, 2, 9, 10, 5, P.offWhite);
+  rect(ctx, 3, 9, 8, 5, P.grayLight);
+  rect(ctx, 4, 10, 4, 3, P.offWhite);  // belly highlight
+  // Feet
+  rect(ctx, 2, 13, 4, 2, P.grayLight);
+  rect(ctx, 8, 13, 4, 2, P.grayLight);
   // Tail
-  px(ctx, 5, 10, P.white);
+  rect(ctx, 10, 11, 3, 2, P.white);
   // Shadow
-  rect(ctx, 2, 11, 6, 1, '#00000020');
+  rect(ctx, 2, 15, 10, 1, '#00000020');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_rabbit');
 }
 
 function drawDeer(scene: Phaser.Scene): void {
-  const w = 14, h = 16;
+  const w = 20, h = 24;
   const ctx = makeCanvas(scene, 'mob_deer', w, h);
-  // Antlers
-  px(ctx, 4, 0, P.brownDark);
-  px(ctx, 3, 1, P.brownDark);
-  px(ctx, 9, 0, P.brownDark);
-  px(ctx, 10, 1, P.brownDark);
+  // Antlers — branching
+  rect(ctx, 5, 0, 2, 4, P.brownDark);
+  px(ctx, 3, 1, P.brownDark);  // left branch
+  px(ctx, 4, 2, P.brownDark);
+  px(ctx, 7, 0, P.brownDark);  // right branch
+  rect(ctx, 13, 0, 2, 4, P.brownDark);
+  px(ctx, 15, 1, P.brownDark);
+  px(ctx, 16, 2, P.brownDark);
+  px(ctx, 12, 0, P.brownDark);
   // Head
-  rect(ctx, 5, 2, 4, 3, P.brownLight);
+  rect(ctx, 6, 4, 8, 5, P.brownLight);
+  rect(ctx, 7, 7, 6, 3, P.brownLight);  // snout extension
   // Eyes
-  px(ctx, 6, 3, P.outline);
-  px(ctx, 8, 3, P.outline);
+  px(ctx, 7, 6, P.outline);
+  px(ctx, 12, 6, P.outline);
+  // Nose
+  rect(ctx, 8, 9, 2, 1, P.brownDark);
+  px(ctx, 8, 9, P.black);
+  // Neck
+  rect(ctx, 8, 8, 4, 3, P.brownLight);
   // Body
-  rect(ctx, 3, 5, 8, 6, P.brownLight);
-  rect(ctx, 4, 5, 6, 6, P.brown);
-  // Belly
-  rect(ctx, 5, 9, 4, 2, P.offWhite);
-  // Legs
-  rect(ctx, 4, 11, 2, 3, P.brownDark);
-  rect(ctx, 8, 11, 2, 3, P.brownDark);
+  rect(ctx, 3, 10, 14, 9, P.brownLight);
+  rect(ctx, 4, 10, 12, 9, P.brown);
+  // Belly lighter stripe
+  rect(ctx, 7, 14, 6, 4, P.offWhite);
+  // Back highlight
+  rect(ctx, 5, 10, 8, 2, P.brownLight);
+  // 4 Legs
+  rect(ctx, 4, 19, 3, 4, P.brownDark);   // front left
+  rect(ctx, 8, 19, 3, 4, P.brownDark);   // front right
+  rect(ctx, 13, 19, 3, 4, P.brownDark);  // back left
+  rect(ctx, 17, 19, 3, 4, P.brownDark);  // back right -- slight offset for perspective
   // Hooves
-  rect(ctx, 4, 14, 2, 1, P.grayDark);
-  rect(ctx, 8, 14, 2, 1, P.grayDark);
+  rect(ctx, 4, 22, 3, 2, P.grayDark);
+  rect(ctx, 8, 22, 3, 2, P.grayDark);
+  rect(ctx, 13, 22, 3, 2, P.grayDark);
+  rect(ctx, 17, 22, 3, 2, P.grayDark);
   // Shadow
-  rect(ctx, 3, 15, 8, 1, '#00000020');
+  rect(ctx, 3, 23, 14, 1, '#00000020');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_deer');
 }
 
 function drawGolem(scene: Phaser.Scene, key: string, body: string, shade: string, eyes: string): void {
-  const w = 14, h = 16;
+  // ancient_golem gets 26x28, rock_golem gets 20x24
+  const isAncient = key === 'mob_ancient_golem';
+  const w = isAncient ? 26 : 20;
+  const h = isAncient ? 28 : 24;
   const ctx = makeCanvas(scene, key, w, h);
-  // Head
-  rect(ctx, 4, 1, 6, 4, shade);
-  // Eyes
-  px(ctx, 5, 3, eyes);
-  px(ctx, 8, 3, eyes);
-  // Body
-  rect(ctx, 3, 5, 8, 6, body);
-  rect(ctx, 4, 5, 6, 6, shade);
-  // Arms
-  rect(ctx, 1, 5, 2, 7, body);
-  rect(ctx, 11, 5, 2, 7, body);
-  // Legs
-  rect(ctx, 4, 11, 2, 4, body);
-  rect(ctx, 8, 11, 2, 4, body);
-  // Cracks
-  px(ctx, 6, 7, shade);
-  px(ctx, 7, 8, shade);
-  px(ctx, 5, 9, shade);
-  // Shadow
-  rect(ctx, 3, 15, 8, 1, '#00000030');
+
+  if (isAncient) {
+    // Big boss golem — 26x28
+    // Head — wide square
+    rect(ctx, 5, 1, 16, 8, shade);
+    rect(ctx, 6, 2, 14, 6, body);
+    // Eyes — glowing 2x2
+    rect(ctx, 8, 4, 3, 3, eyes);
+    rect(ctx, 15, 4, 3, 3, eyes);
+    // Forehead cracks
+    px(ctx, 11, 2, shade); px(ctx, 12, 3, shade); px(ctx, 13, 2, shade);
+    // Jaw details
+    rect(ctx, 7, 7, 4, 2, shade);
+    rect(ctx, 15, 7, 4, 2, shade);
+    // Body — massive torso
+    rect(ctx, 3, 9, 20, 11, body);
+    rect(ctx, 4, 10, 18, 9, shade);
+    // Chest emblem
+    rect(ctx, 10, 11, 6, 5, body);
+    px(ctx, 12, 12, eyes); px(ctx, 13, 12, eyes);  // rune glow
+    px(ctx, 12, 14, eyes); px(ctx, 13, 14, eyes);
+    // Shoulder plates
+    rect(ctx, 1, 9, 4, 6, body);
+    rect(ctx, 21, 9, 4, 6, body);
+    // Arms — chunky
+    rect(ctx, 1, 15, 4, 8, shade);
+    rect(ctx, 21, 15, 4, 8, shade);
+    rect(ctx, 2, 16, 2, 6, body);
+    rect(ctx, 22, 16, 2, 6, body);
+    // Fists
+    rect(ctx, 1, 22, 5, 4, body);
+    rect(ctx, 20, 22, 5, 4, body);
+    // Legs — pillars
+    rect(ctx, 6, 20, 5, 7, body);
+    rect(ctx, 15, 20, 5, 7, body);
+    rect(ctx, 7, 21, 3, 5, shade);
+    rect(ctx, 16, 21, 3, 5, shade);
+    // Cracks all over body
+    px(ctx, 7, 12, shade); px(ctx, 8, 13, shade); px(ctx, 6, 14, shade);
+    px(ctx, 17, 11, shade); px(ctx, 18, 13, shade);
+    px(ctx, 9, 16, shade); px(ctx, 14, 17, shade); px(ctx, 11, 18, shade);
+    // Shadow
+    rect(ctx, 4, 27, 18, 1, '#00000040');
+  } else {
+    // Standard rock golem — 20x24
+    // Head
+    rect(ctx, 5, 1, 10, 7, shade);
+    rect(ctx, 6, 2, 8, 5, body);
+    // Eyes
+    rect(ctx, 7, 4, 2, 2, eyes);
+    rect(ctx, 11, 4, 2, 2, eyes);
+    // Head crack
+    px(ctx, 9, 2, shade); px(ctx, 10, 3, shade);
+    // Body
+    rect(ctx, 4, 8, 12, 9, body);
+    rect(ctx, 5, 9, 10, 7, shade);
+    // Chest cracks
+    px(ctx, 8, 10, shade); px(ctx, 9, 11, shade); px(ctx, 7, 12, shade);
+    px(ctx, 13, 10, shade); px(ctx, 12, 13, shade);
+    // Arms
+    rect(ctx, 1, 8, 4, 8, body);
+    rect(ctx, 15, 8, 4, 8, body);
+    rect(ctx, 2, 9, 2, 6, shade);
+    rect(ctx, 16, 9, 2, 6, shade);
+    // Legs
+    rect(ctx, 5, 17, 4, 6, body);
+    rect(ctx, 11, 17, 4, 6, body);
+    rect(ctx, 6, 18, 2, 4, shade);
+    rect(ctx, 12, 18, 2, 4, shade);
+    // Shadow
+    rect(ctx, 4, 23, 12, 1, '#00000030');
+  }
+
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawBat(scene: Phaser.Scene): void {
-  const w = 16, h = 10;
+  const w = 18, h = 16;
   const ctx = makeCanvas(scene, 'mob_cave_bat', w, h);
-  // Wings
-  rect(ctx, 0, 3, 4, 3, P.grayDark);
-  rect(ctx, 12, 3, 4, 3, P.grayDark);
-  rect(ctx, 2, 2, 3, 2, P.grayDark);
-  rect(ctx, 11, 2, 3, 2, P.grayDark);
+  // Wing membranes — spread wide
+  rect(ctx, 0, 5, 5, 5, P.grayDark);
+  rect(ctx, 13, 5, 5, 5, P.grayDark);
+  rect(ctx, 2, 3, 4, 4, P.grayDark);
+  rect(ctx, 12, 3, 4, 4, P.grayDark);
+  // Wing bone lines
+  px(ctx, 1, 9, P.grayDeep); px(ctx, 3, 6, P.grayDeep);
+  px(ctx, 16, 9, P.grayDeep); px(ctx, 14, 6, P.grayDeep);
+  // Wing-fold highlights
+  px(ctx, 2, 7, '#4a4a5a'); px(ctx, 15, 7, '#4a4a5a');
   // Body
-  rect(ctx, 6, 2, 4, 5, P.grayDeep);
+  rect(ctx, 6, 4, 6, 7, P.grayDeep);
+  rect(ctx, 7, 5, 4, 5, P.grayDark);
+  // Feet/claws hanging
+  px(ctx, 7, 11, P.grayDark); px(ctx, 8, 12, P.grayDark);
+  px(ctx, 10, 11, P.grayDark); px(ctx, 9, 12, P.grayDark);
   // Head
-  rect(ctx, 6, 1, 4, 2, P.grayDark);
-  // Eyes
-  px(ctx, 7, 2, P.red);
-  px(ctx, 9, 2, P.red);
-  // Ears
-  px(ctx, 6, 0, P.grayDark);
-  px(ctx, 9, 0, P.grayDark);
+  rect(ctx, 7, 2, 4, 3, P.grayDark);
+  // Eyes — red glow
+  rect(ctx, 7, 3, 2, 2, P.red);
+  rect(ctx, 11, 3, 2, 2, P.red);
+  px(ctx, 8, 3, P.redLight); px(ctx, 12, 3, P.redLight);
+  // Ears — pointed
+  px(ctx, 7, 1, P.grayDark); px(ctx, 6, 0, P.grayDark);
+  px(ctx, 11, 1, P.grayDark); px(ctx, 12, 0, P.grayDark);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_cave_bat');
 }
 
 function drawFrog(scene: Phaser.Scene): void {
-  const w = 12, h = 10;
+  const w = 14, h = 16;
   const ctx = makeCanvas(scene, 'mob_poison_frog', w, h);
-  // Body
-  rect(ctx, 2, 4, 8, 4, P.greenLight);
-  rect(ctx, 3, 3, 6, 1, P.greenLight);
-  // Spots
-  px(ctx, 4, 5, P.yellow);
-  px(ctx, 7, 6, P.yellow);
-  px(ctx, 5, 7, P.yellow);
-  // Eyes (big, bulgy)
-  rect(ctx, 2, 2, 2, 2, P.yellow);
-  rect(ctx, 8, 2, 2, 2, P.yellow);
-  px(ctx, 3, 3, P.outline);
-  px(ctx, 9, 3, P.outline);
+  // Body — low, wide
+  rect(ctx, 2, 7, 10, 6, P.greenLight);
+  rect(ctx, 3, 6, 8, 2, P.greenLight);
+  rect(ctx, 4, 5, 6, 2, P.greenLight);
+  // Belly (lighter)
+  rect(ctx, 4, 9, 6, 3, P.offWhite);
+  // Spots — poison warning
+  rect(ctx, 3, 8, 2, 2, P.yellow);
+  rect(ctx, 9, 9, 2, 2, P.yellow);
+  px(ctx, 6, 11, P.yellow);
+  // Eyes (big, bulgy — on top of head)
+  rect(ctx, 2, 3, 3, 3, P.yellow);
+  rect(ctx, 9, 3, 3, 3, P.yellow);
+  rect(ctx, 3, 4, 2, 2, P.outline);   // pupils
+  rect(ctx, 10, 4, 2, 2, P.outline);
+  px(ctx, 3, 4, P.white);  // sparkle
+  px(ctx, 10, 4, P.white);
   // Front legs
-  px(ctx, 1, 7, P.greenDark);
-  px(ctx, 10, 7, P.greenDark);
+  rect(ctx, 1, 10, 2, 4, P.greenDark);
+  rect(ctx, 11, 10, 2, 4, P.greenDark);
+  // Webbed toes
+  px(ctx, 0, 13, P.greenDark); px(ctx, 2, 14, P.greenDark); px(ctx, 1, 14, P.greenDark);
+  px(ctx, 12, 13, P.greenDark); px(ctx, 13, 14, P.greenDark); px(ctx, 12, 14, P.greenDark);
   // Shadow
-  rect(ctx, 2, 9, 8, 1, '#00000020');
+  rect(ctx, 2, 15, 10, 1, '#00000020');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_poison_frog');
 }
 
 function drawLurker(scene: Phaser.Scene): void {
-  const w = 12, h = 16;
+  const w = 20, h = 24;
   const ctx = makeCanvas(scene, 'mob_bog_lurker', w, h);
-  // Tendrils
-  px(ctx, 4, 0, P.swampDark);
-  px(ctx, 7, 0, P.swampDark);
-  px(ctx, 3, 1, P.swampDark);
-  px(ctx, 8, 1, P.swampDark);
+  // Tendrils / head fins
+  px(ctx, 6, 0, P.swampDark); px(ctx, 7, 1, P.swampDark);
+  px(ctx, 10, 0, P.swampDark); px(ctx, 11, 1, P.swampDark);
+  px(ctx, 13, 0, P.swampDark); px(ctx, 14, 1, P.swampDark);
+  px(ctx, 5, 1, P.swampDark); px(ctx, 15, 1, P.swampDark);
   // Head
-  rect(ctx, 3, 2, 6, 4, P.swampGreen);
-  // Eyes
-  px(ctx, 4, 4, P.slimeLight);
-  px(ctx, 7, 4, P.slimeLight);
-  // Body
-  rect(ctx, 2, 6, 8, 6, P.swampGreen);
-  rect(ctx, 3, 6, 6, 6, P.swampDark);
-  // Dripping bits
-  px(ctx, 3, 12, P.swampDark);
-  px(ctx, 8, 12, P.swampDark);
-  // Legs
-  rect(ctx, 3, 12, 2, 3, P.swampGreen);
-  rect(ctx, 7, 12, 2, 3, P.swampGreen);
+  rect(ctx, 4, 2, 12, 7, P.swampGreen);
+  rect(ctx, 5, 3, 10, 5, P.swampDark);
+  // Slime drip on face
+  px(ctx, 7, 7, P.slimeGreen); px(ctx, 12, 7, P.slimeGreen);
+  // Eyes — glowing
+  rect(ctx, 6, 4, 3, 3, P.slimeLight);
+  rect(ctx, 11, 4, 3, 3, P.slimeLight);
+  px(ctx, 7, 5, P.slimeGreen); px(ctx, 12, 5, P.slimeGreen); // pupils
+  // Mouth with teeth
+  rect(ctx, 6, 7, 8, 2, P.swampDark);
+  px(ctx, 7, 8, P.offWhite); px(ctx, 9, 8, P.offWhite); px(ctx, 11, 8, P.offWhite);
+  // Body — hunched, wide
+  rect(ctx, 3, 9, 14, 10, P.swampGreen);
+  rect(ctx, 4, 10, 12, 8, P.swampDark);
+  // Belly mucus
+  rect(ctx, 7, 12, 6, 5, P.swampGreen);
+  px(ctx, 8, 13, P.slimeGreen); px(ctx, 11, 14, P.slimeGreen);
+  // Slime drips off body
+  px(ctx, 4, 19, P.swampDark); px(ctx, 5, 20, P.swampDark);
+  px(ctx, 14, 19, P.swampDark); px(ctx, 15, 20, P.swampDark);
+  // Legs — stumpy
+  rect(ctx, 4, 19, 4, 4, P.swampGreen);
+  rect(ctx, 12, 19, 4, 4, P.swampGreen);
+  rect(ctx, 5, 20, 2, 3, P.swampDark);
+  rect(ctx, 13, 20, 2, 3, P.swampDark);
+  // Claws
+  px(ctx, 3, 22, P.swampDark); px(ctx, 4, 23, P.swampDark); px(ctx, 7, 23, P.swampDark);
+  px(ctx, 12, 23, P.swampDark); px(ctx, 15, 23, P.swampDark); px(ctx, 16, 22, P.swampDark);
   // Shadow
-  rect(ctx, 2, 15, 8, 1, '#00000030');
+  rect(ctx, 3, 23, 14, 1, '#00000030');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_bog_lurker');
 }
 
 function drawElemental(scene: Phaser.Scene, key: string, core: string, glow: string, bright: string): void {
-  const w = 12, h = 14;
+  const w = 18, h = 16;
   const ctx = makeCanvas(scene, key, w, h);
-  // Outer glow
-  rect(ctx, 3, 3, 6, 8, glow);
-  // Core
-  rect(ctx, 4, 4, 4, 6, core);
+  // Outer glow / body flame
+  rect(ctx, 4, 5, 10, 9, glow);
+  rect(ctx, 5, 4, 8, 2, glow);
+  rect(ctx, 6, 3, 6, 2, glow);
+  // Core body
+  rect(ctx, 6, 6, 6, 7, core);
+  rect(ctx, 5, 7, 8, 5, core);
   // Bright center
-  px(ctx, 5, 5, bright);
-  px(ctx, 6, 5, bright);
-  px(ctx, 5, 6, bright);
-  // Top flame
-  px(ctx, 5, 1, glow);
-  px(ctx, 6, 1, glow);
-  px(ctx, 5, 2, core);
-  px(ctx, 6, 2, core);
+  rect(ctx, 7, 7, 4, 3, bright);
+  px(ctx, 8, 6, bright);
+  // Top flames — 3 tongues
+  rect(ctx, 7, 1, 2, 3, glow);   // left flame
+  rect(ctx, 9, 0, 2, 4, core);   // center tall flame
+  rect(ctx, 11, 2, 2, 2, glow);  // right flame
+  px(ctx, 9, 0, bright); px(ctx, 10, 0, bright);
   // Side wisps
-  px(ctx, 2, 5, glow);
-  px(ctx, 9, 6, glow);
-  px(ctx, 3, 8, glow);
-  px(ctx, 8, 4, glow);
-  // Eyes
-  px(ctx, 5, 7, P.outline);
-  px(ctx, 7, 7, P.outline);
+  rect(ctx, 2, 7, 3, 2, glow);
+  rect(ctx, 13, 6, 3, 2, glow);
+  px(ctx, 3, 6, glow); px(ctx, 14, 8, glow);
+  px(ctx, 2, 9, core); px(ctx, 15, 7, core);
+  // Eyes (dark pupils in the bright center)
+  rect(ctx, 7, 8, 2, 2, P.outline);
+  rect(ctx, 11, 8, 2, 2, P.outline);
+  px(ctx, 8, 8, glow); px(ctx, 12, 8, glow);  // inner reflection
   // Shadow
-  rect(ctx, 4, 12, 4, 1, '#00000020');
+  rect(ctx, 5, 14, 8, 2, '#00000020');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawBeast(scene: Phaser.Scene, key: string, body: string, accent: string): void {
-  const w = 14, h = 14;
+  const w = 20, h = 24;
   const ctx = makeCanvas(scene, key, w, h);
-  // Ears/horns
-  px(ctx, 3, 0, body);
-  px(ctx, 10, 0, body);
-  // Head
-  rect(ctx, 4, 1, 6, 4, accent);
+  // Horns — swept back
+  px(ctx, 5, 0, body); px(ctx, 4, 1, body); px(ctx, 3, 2, body);
+  px(ctx, 14, 0, body); px(ctx, 15, 1, body); px(ctx, 16, 2, body);
+  // Head — wide, menacing
+  rect(ctx, 5, 1, 10, 7, accent);
+  rect(ctx, 6, 2, 8, 5, body);
+  // Snout
+  rect(ctx, 7, 6, 6, 3, accent);
   // Eyes (red, menacing)
-  px(ctx, 5, 3, P.red);
-  px(ctx, 8, 3, P.red);
+  rect(ctx, 6, 3, 3, 2, P.red);
+  rect(ctx, 11, 3, 3, 2, P.red);
+  px(ctx, 7, 3, P.redLight); px(ctx, 12, 3, P.redLight);
+  // Nostrils
+  px(ctx, 8, 7, body); px(ctx, 11, 7, body);
+  // Teeth
+  px(ctx, 8, 8, P.offWhite); px(ctx, 10, 8, P.offWhite); px(ctx, 12, 8, P.offWhite);
+  // Neck
+  rect(ctx, 7, 8, 6, 3, accent);
   // Body
-  rect(ctx, 2, 5, 10, 5, body);
-  rect(ctx, 3, 5, 8, 5, accent);
-  // Legs
-  rect(ctx, 3, 10, 2, 3, body);
-  rect(ctx, 9, 10, 2, 3, body);
+  rect(ctx, 3, 10, 14, 9, body);
+  rect(ctx, 4, 11, 12, 7, accent);
+  // Fur texture / stripes
+  rect(ctx, 6, 12, 2, 4, body);
+  rect(ctx, 10, 11, 2, 5, body);
+  rect(ctx, 14, 13, 2, 3, body);
+  // Legs — 4 sturdy legs
+  rect(ctx, 4, 19, 4, 4, body);
+  rect(ctx, 12, 19, 4, 4, body);
   // Claws
-  px(ctx, 3, 13, accent);
-  px(ctx, 4, 13, accent);
-  px(ctx, 9, 13, accent);
-  px(ctx, 10, 13, accent);
+  px(ctx, 3, 22, accent); px(ctx, 4, 23, accent); px(ctx, 7, 23, accent);
+  px(ctx, 12, 23, accent); px(ctx, 15, 23, accent); px(ctx, 16, 22, accent);
+  // Tail hint
+  rect(ctx, 17, 11, 3, 5, body);
+  px(ctx, 19, 10, body); px(ctx, 19, 16, body);
   // Shadow
-  rect(ctx, 3, 13, 8, 1, '#00000030');
+  rect(ctx, 3, 23, 14, 1, '#00000030');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawCorruptedNPC(scene: Phaser.Scene): void {
-  const w = 12, h = 18;
+  const w = 20, h = 24;
   const ctx = makeCanvas(scene, 'mob_corrupted_npc', w, h);
-  // Hair (messy)
-  rect(ctx, 3, 0, 6, 2, P.purpleDark);
-  px(ctx, 2, 1, P.purpleDark);
-  px(ctx, 9, 1, P.purpleDark);
+  // Hair (messy, corruption tendrils)
+  rect(ctx, 6, 0, 8, 3, P.purpleDark);
+  px(ctx, 4, 1, P.purpleDark); px(ctx, 5, 2, P.purpleDark);
+  px(ctx, 15, 1, P.purpleDark); px(ctx, 14, 2, P.purpleDark);
+  // Corruption wisps from head
+  px(ctx, 6, 0, P.purple); px(ctx, 9, 0, P.purpleLight); px(ctx, 13, 0, P.purple);
   // Head
-  rect(ctx, 4, 2, 4, 4, P.skinShade);
-  // Corruption on face
-  px(ctx, 4, 3, P.purple);
-  px(ctx, 7, 4, P.purple);
-  // Eyes (glowing)
-  px(ctx, 5, 4, P.purpleLight);
-  px(ctx, 7, 4, P.purpleLight);
-  // Body
-  rect(ctx, 3, 6, 6, 5, P.purpleDark);
-  rect(ctx, 4, 6, 4, 5, P.purple);
-  // Arms
-  rect(ctx, 2, 7, 1, 4, P.purpleDark);
-  rect(ctx, 9, 7, 1, 4, P.purpleDark);
+  rect(ctx, 6, 3, 8, 7, P.skinShade);
+  rect(ctx, 7, 4, 6, 5, P.skin);
+  // Corruption on face (veins)
+  px(ctx, 7, 5, P.purple); px(ctx, 8, 6, P.purple);
+  px(ctx, 12, 5, P.purple); px(ctx, 11, 7, P.purple);
+  // Eyes (glowing purple)
+  rect(ctx, 8, 6, 2, 2, P.purpleLight);
+  rect(ctx, 12, 6, 2, 2, P.purpleLight);
+  px(ctx, 9, 6, P.white); px(ctx, 13, 6, P.white);
+  // Mouth (sinister smile)
+  px(ctx, 9, 8, P.purpleDark); px(ctx, 10, 9, P.purpleDark); px(ctx, 11, 8, P.purpleDark);
+  // Neck
+  rect(ctx, 9, 10, 4, 2, P.skinShade);
+  // Body — tattered robes
+  rect(ctx, 5, 11, 10, 8, P.purpleDark);
+  rect(ctx, 6, 12, 8, 6, P.purple);
+  // Robe details / tears
+  rect(ctx, 8, 12, 4, 5, P.purpleDark);
+  px(ctx, 7, 15, P.purpleLight); px(ctx, 12, 14, P.purpleLight);
+  // Arms — with corruption veins
+  rect(ctx, 3, 11, 3, 7, P.purpleDark);
+  rect(ctx, 14, 11, 3, 7, P.purpleDark);
+  rect(ctx, 4, 12, 1, 5, P.purple);
+  rect(ctx, 15, 12, 1, 5, P.purple);
+  // Hands with corruption
+  rect(ctx, 3, 17, 3, 3, P.skinShade);
+  rect(ctx, 14, 17, 3, 3, P.skinShade);
+  px(ctx, 3, 18, P.purple); px(ctx, 16, 18, P.purple);
   // Legs
-  rect(ctx, 3, 11, 2, 4, P.grayDark);
-  rect(ctx, 7, 11, 2, 4, P.grayDark);
-  // Corruption drip
-  px(ctx, 2, 11, P.purple);
-  px(ctx, 9, 11, P.purple);
-  px(ctx, 5, 15, P.purple);
+  rect(ctx, 6, 19, 3, 4, P.grayDark);
+  rect(ctx, 11, 19, 3, 4, P.grayDark);
+  rect(ctx, 7, 20, 1, 3, P.purpleDark);
+  rect(ctx, 12, 20, 1, 3, P.purpleDark);
+  // Corruption drips off arms/robes
+  px(ctx, 4, 19, P.purple); px(ctx, 15, 19, P.purple);
+  px(ctx, 7, 23, P.purple); px(ctx, 12, 23, P.purple);
   // Shadow
-  rect(ctx, 3, 16, 6, 1, '#00000030');
+  rect(ctx, 5, 23, 10, 1, '#00000030');
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_corrupted_npc');
 }
@@ -655,157 +831,231 @@ function generateResourceTextures(scene: Phaser.Scene): void {
 }
 
 function drawTree(scene: Phaser.Scene, key: string, leaf: string, leafLight: string, trunk: string, trunkDark: string): void {
-  const w = 12, h = 16;
+  const w = 20, h = 30;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 3, 14, 6, 2, '#00000020');
-  // Trunk
-  rect(ctx, 5, 9, 2, 6, trunk);
-  px(ctx, 5, 9, trunkDark);
-  px(ctx, 5, 13, trunkDark);
-  // Canopy - 3 layers
-  rect(ctx, 3, 5, 6, 4, leaf);
-  rect(ctx, 2, 6, 8, 3, leaf);
-  rect(ctx, 4, 3, 4, 3, leaf);
-  // Highlights on top-left
-  px(ctx, 4, 4, leafLight);
-  px(ctx, 5, 4, leafLight);
-  px(ctx, 3, 6, leafLight);
-  px(ctx, 4, 5, leafLight);
+  rect(ctx, 5, 27, 10, 3, '#00000025');
+  // Trunk — 3px wide, tall
+  rect(ctx, 8, 16, 4, 13, trunk);
+  rect(ctx, 9, 16, 2, 13, trunkDark);
+  // Trunk texture / bark lines
+  px(ctx, 8, 18, trunkDark); px(ctx, 10, 21, trunkDark);
+  px(ctx, 8, 24, trunkDark); px(ctx, 11, 25, trunkDark);
+  // Bottom root flares
+  rect(ctx, 6, 26, 3, 2, trunk);
+  rect(ctx, 11, 26, 3, 2, trunk);
+  // Canopy — 3 overlapping circles / blobs
+  // Bottom circle (widest)
+  rect(ctx, 2, 13, 16, 6, leaf);
+  rect(ctx, 1, 14, 18, 5, leaf);
+  rect(ctx, 3, 12, 14, 2, leaf);
+  // Middle circle
+  rect(ctx, 3, 7, 14, 7, leaf);
+  rect(ctx, 4, 6, 12, 2, leaf);
+  rect(ctx, 2, 8, 16, 5, leaf);
+  // Top circle (smallest)
+  rect(ctx, 6, 2, 8, 6, leaf);
+  rect(ctx, 7, 1, 6, 2, leaf);
+  rect(ctx, 5, 3, 10, 5, leaf);
+  // Leaf detail highlights — top-left of each cluster
+  rect(ctx, 5, 14, 4, 2, leafLight);
+  px(ctx, 4, 13, leafLight); px(ctx, 6, 12, leafLight);
+  rect(ctx, 5, 8, 4, 2, leafLight);
+  px(ctx, 5, 7, leafLight); px(ctx, 7, 6, leafLight);
+  rect(ctx, 8, 3, 3, 2, leafLight);
+  px(ctx, 8, 2, leafLight);
+  // Darker leaf shading on bottom-right
+  rect(ctx, 13, 15, 4, 3, trunkDark);
+  rect(ctx, 14, 10, 3, 3, trunkDark);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawRock(scene: Phaser.Scene, key: string, body: string, light: string, shade: string): void {
-  const w = 10, h = 10;
+  const w = 16, h = 14;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 2, 8, 7, 2, '#00000020');
-  // Main rock shape
-  rect(ctx, 2, 3, 6, 5, body);
-  rect(ctx, 1, 4, 8, 4, body);
-  rect(ctx, 3, 2, 4, 1, body);
-  // Highlight top-left
-  px(ctx, 3, 3, light);
-  px(ctx, 4, 3, light);
-  px(ctx, 2, 4, light);
-  // Shade bottom-right
-  px(ctx, 7, 6, shade);
-  px(ctx, 7, 7, shade);
-  px(ctx, 6, 7, shade);
-  // Crack
-  px(ctx, 4, 5, shade);
-  px(ctx, 5, 6, shade);
+  rect(ctx, 2, 12, 12, 2, '#00000020');
+  // Main rock shape — chunky polygon
+  rect(ctx, 3, 4, 10, 7, body);
+  rect(ctx, 2, 5, 12, 6, body);
+  rect(ctx, 4, 3, 8, 2, body);
+  rect(ctx, 5, 2, 6, 1, body);
+  // Second smaller rock behind/beside
+  rect(ctx, 11, 6, 4, 4, shade);
+  rect(ctx, 12, 5, 3, 1, shade);
+  // Top-left facet highlight
+  rect(ctx, 4, 4, 4, 2, light);
+  px(ctx, 3, 5, light); px(ctx, 4, 3, light);
+  px(ctx, 6, 3, light);
+  // Bottom-right shading
+  rect(ctx, 11, 8, 3, 3, shade);
+  px(ctx, 12, 7, shade);
+  // Cracks
+  px(ctx, 7, 6, shade); px(ctx, 8, 7, shade); px(ctx, 6, 8, shade);
+  px(ctx, 10, 5, shade); px(ctx, 11, 6, shade);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawBush(scene: Phaser.Scene, key: string, dark: string, light: string, fruit: string): void {
-  const w = 10, h = 10;
+  const w = 16, h = 14;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 2, 8, 6, 2, '#00000015');
-  // Bush shape
-  rect(ctx, 2, 4, 6, 4, dark);
-  rect(ctx, 1, 5, 8, 3, dark);
-  rect(ctx, 3, 3, 4, 1, dark);
-  // Light top
-  px(ctx, 3, 4, light);
-  px(ctx, 4, 4, light);
-  px(ctx, 5, 3, light);
-  // Fruits / flowers
-  px(ctx, 3, 5, fruit);
-  px(ctx, 6, 6, fruit);
-  px(ctx, 4, 7, fruit);
+  rect(ctx, 2, 12, 12, 2, '#00000015');
+  // Bush shape — 3 rounded lumps
+  // Left lump
+  rect(ctx, 1, 5, 6, 6, dark);
+  rect(ctx, 2, 4, 4, 2, dark);
+  // Right lump
+  rect(ctx, 9, 5, 6, 6, dark);
+  rect(ctx, 10, 4, 4, 2, dark);
+  // Center lump (tallest)
+  rect(ctx, 5, 3, 6, 8, dark);
+  rect(ctx, 6, 2, 4, 2, dark);
+  // Fill gaps
+  rect(ctx, 3, 6, 10, 5, dark);
+  // Light highlights — top of each lump
+  rect(ctx, 3, 4, 2, 2, light);
+  px(ctx, 3, 3, light);
+  rect(ctx, 11, 4, 2, 2, light);
+  px(ctx, 11, 3, light);
+  rect(ctx, 7, 3, 2, 2, light);
+  px(ctx, 7, 2, light);
+  // Berries / fruits / flowers — scattered
+  rect(ctx, 3, 7, 2, 2, fruit);
+  rect(ctx, 7, 6, 2, 2, fruit);
+  rect(ctx, 11, 7, 2, 2, fruit);
+  px(ctx, 5, 9, fruit);
+  px(ctx, 9, 9, fruit);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawOre(scene: Phaser.Scene, key: string, rock: string, shade: string, ore: string): void {
-  const w = 10, h = 10;
+  const w = 16, h = 14;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 2, 8, 7, 2, '#00000020');
-  // Rock base
-  rect(ctx, 1, 3, 8, 5, rock);
-  rect(ctx, 2, 2, 6, 1, rock);
-  // Shade
-  px(ctx, 7, 6, shade);
-  px(ctx, 7, 7, shade);
-  // Ore veins (sparkly spots)
-  px(ctx, 3, 4, ore);
-  px(ctx, 6, 3, ore);
-  px(ctx, 4, 6, ore);
-  px(ctx, 7, 5, ore);
-  // Sparkle
-  px(ctx, 3, 3, P.white);
-  px(ctx, 6, 5, P.white);
+  rect(ctx, 2, 12, 12, 2, '#00000020');
+  // Rock base — chunky polygon
+  rect(ctx, 2, 4, 12, 7, rock);
+  rect(ctx, 1, 5, 14, 6, rock);
+  rect(ctx, 3, 3, 10, 2, rock);
+  rect(ctx, 5, 2, 6, 1, rock);
+  // Darker shading on bottom-right face
+  rect(ctx, 11, 7, 4, 4, shade);
+  rect(ctx, 12, 6, 2, 1, shade);
+  // Ore vein seams — clusters of dots
+  rect(ctx, 4, 5, 2, 2, ore);
+  px(ctx, 3, 6, ore); px(ctx, 5, 7, ore);
+  rect(ctx, 9, 4, 2, 2, ore);
+  px(ctx, 8, 5, ore); px(ctx, 10, 6, ore);
+  rect(ctx, 6, 7, 2, 2, ore);
+  px(ctx, 7, 9, ore); px(ctx, 5, 8, ore);
+  // Sparkle/shine on ore
+  px(ctx, 4, 5, P.white); px(ctx, 9, 4, P.white);
+  px(ctx, 6, 7, P.white);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawCrystal(scene: Phaser.Scene, key: string, body: string, light: string, bright: string): void {
-  const w = 10, h = 14;
+  const w = 14, h = 22;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 2, 12, 6, 2, '#00000020');
-  // Main crystal shard (center)
-  rect(ctx, 4, 2, 2, 10, body);
-  rect(ctx, 3, 4, 4, 6, body);
-  // Left shard
-  rect(ctx, 1, 6, 2, 5, body);
-  px(ctx, 2, 5, body);
-  // Right shard
-  rect(ctx, 7, 5, 2, 6, body);
-  px(ctx, 7, 4, body);
-  // Highlights
-  px(ctx, 4, 3, light);
-  px(ctx, 4, 4, light);
-  px(ctx, 2, 7, light);
-  px(ctx, 7, 5, light);
-  // Bright sparkle
-  px(ctx, 4, 3, bright);
-  px(ctx, 8, 5, bright);
+  rect(ctx, 2, 19, 10, 3, '#00000020');
+  // Center shard — tall, pointed
+  px(ctx, 6, 0, bright);  // tip
+  px(ctx, 7, 0, light);
+  rect(ctx, 5, 1, 4, 2, light);
+  rect(ctx, 5, 3, 4, 14, body);
+  rect(ctx, 4, 5, 6, 10, body);
+  rect(ctx, 3, 8, 8, 7, body);
+  // Left shard — shorter, angled
+  px(ctx, 2, 5, light);  // tip
+  px(ctx, 2, 6, light);
+  rect(ctx, 2, 7, 3, 2, light);
+  rect(ctx, 1, 9, 4, 8, body);
+  rect(ctx, 2, 8, 3, 9, body);
+  // Right shard — medium height
+  px(ctx, 11, 3, light);  // tip
+  px(ctx, 11, 4, light);
+  rect(ctx, 10, 5, 3, 2, light);
+  rect(ctx, 10, 7, 4, 10, body);
+  rect(ctx, 9, 6, 4, 11, body);
+  // Center shard highlight face
+  rect(ctx, 5, 3, 2, 12, light);
+  px(ctx, 5, 2, light);
+  // Left shard highlight
+  px(ctx, 2, 9, light); px(ctx, 2, 11, light); px(ctx, 2, 13, light);
+  // Right shard highlight
+  px(ctx, 10, 7, light); px(ctx, 10, 9, light); px(ctx, 10, 11, light);
+  // Dark face right side of center
+  rect(ctx, 8, 5, 2, 12, P.outlineLight);
+  // Bright sparkles
+  px(ctx, 6, 1, bright); px(ctx, 5, 4, bright);
+  px(ctx, 2, 6, bright); px(ctx, 11, 4, bright);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawMushroom(scene: Phaser.Scene, key: string, cap: string, capLight: string, stem: string): void {
-  const w = 10, h = 12;
+  const w = 14, h = 18;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 2, 10, 6, 2, '#00000015');
-  // Stem
-  rect(ctx, 4, 7, 2, 4, stem);
-  // Cap
-  rect(ctx, 2, 3, 6, 4, cap);
-  rect(ctx, 1, 4, 8, 3, cap);
-  rect(ctx, 3, 2, 4, 1, cap);
-  // Spots
-  px(ctx, 3, 4, capLight);
-  px(ctx, 6, 5, capLight);
-  px(ctx, 4, 3, capLight);
-  // Highlight
-  px(ctx, 3, 3, capLight);
+  rect(ctx, 2, 16, 10, 2, '#00000015');
+  // Stem — visible gills/skirt at base of cap
+  rect(ctx, 5, 10, 4, 7, stem);
+  rect(ctx, 4, 10, 6, 7, stem);
+  rect(ctx, 6, 10, 2, 7, P.offWhite);  // stem highlight
+  // Gills (underside of cap)
+  rect(ctx, 3, 9, 8, 2, P.offWhite);
+  px(ctx, 2, 10, P.offWhite); px(ctx, 11, 10, P.offWhite);
+  px(ctx, 4, 10, stem); px(ctx, 6, 10, stem); px(ctx, 8, 10, stem); px(ctx, 10, 10, stem);
+  // Cap — wide dome
+  rect(ctx, 2, 4, 10, 6, cap);
+  rect(ctx, 1, 5, 12, 5, cap);
+  rect(ctx, 3, 3, 8, 2, cap);
+  rect(ctx, 5, 2, 4, 1, cap);
+  // Highlight area on cap (top-left)
+  rect(ctx, 4, 4, 4, 3, capLight);
+  px(ctx, 5, 3, capLight); px(ctx, 3, 5, capLight);
+  // Spots — large and small
+  rect(ctx, 3, 6, 2, 2, capLight);
+  rect(ctx, 8, 5, 2, 2, capLight);
+  rect(ctx, 6, 7, 3, 2, capLight);
+  px(ctx, 10, 7, capLight); px(ctx, 2, 7, capLight);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
 
 function drawReeds(scene: Phaser.Scene, key: string, stalk: string, dark: string): void {
-  const w = 8, h = 14;
+  const w = 12, h = 22;
   const ctx = makeCanvas(scene, key, w, h);
   // Shadow
-  rect(ctx, 1, 12, 6, 2, '#00000010');
-  // Stalks (3 thin vertical lines)
-  for (let y = 3; y < 13; y++) {
-    px(ctx, 2, y, stalk);
-    px(ctx, 4, y, dark);
-    px(ctx, 6, y, stalk);
-  }
-  // Tops (fluffy seed heads)
-  rect(ctx, 1, 1, 2, 3, stalk);
-  rect(ctx, 3, 0, 2, 4, dark);
-  rect(ctx, 5, 2, 2, 2, stalk);
+  rect(ctx, 1, 20, 10, 2, '#00000010');
+  // 5 stalks at slightly different heights and x positions
+  // Stalk 1 (leftmost)
+  for (let y = 9; y < 20; y++) { px(ctx, 1, y, stalk); }
+  // Stalk 2
+  for (let y = 6; y < 20; y++) { px(ctx, 3, y, dark); }
+  // Stalk 3 (tallest center)
+  for (let y = 4; y < 20; y++) { px(ctx, 5, y, stalk); px(ctx, 6, y, stalk); }
+  // Stalk 4
+  for (let y = 7; y < 20; y++) { px(ctx, 8, y, dark); }
+  // Stalk 5 (rightmost)
+  for (let y = 10; y < 20; y++) { px(ctx, 10, y, stalk); }
+  // Fluffy seed heads — wider oval shapes
+  rect(ctx, 0, 6, 3, 4, stalk);  // head 1
+  rect(ctx, 2, 3, 3, 4, dark);   // head 2
+  rect(ctx, 4, 1, 3, 4, stalk);  // head 3 (tallest)
+  px(ctx, 5, 0, dark); px(ctx, 6, 0, dark);
+  rect(ctx, 7, 4, 3, 4, dark);   // head 4
+  rect(ctx, 9, 7, 3, 3, stalk);  // head 5
+  // Seed head highlights
+  px(ctx, 1, 7, P.greenLight); px(ctx, 3, 4, P.greenLight);
+  px(ctx, 5, 2, P.greenLight); px(ctx, 8, 5, P.greenLight);
+  px(ctx, 10, 8, P.greenLight);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }
@@ -813,62 +1063,114 @@ function drawReeds(scene: Phaser.Scene, key: string, stalk: string, dark: string
 // ─── STATION TEXTURES ────────────────────────────────────
 
 function generateStationTextures(scene: Phaser.Scene): void {
-  // station_campfire: 20x20 — brown logs + orange/red flame
+  // station_campfire: 28x24
   {
-    const w = 20, h = 20;
+    const w = 28, h = 24;
     const ctx = makeCanvas(scene, 'station_campfire', w, h);
-    // Log base (brown X shape)
-    rect(ctx, 3, 13, 6, 3, P.brown);
-    rect(ctx, 11, 13, 6, 3, P.brown);
-    rect(ctx, 4, 12, 12, 2, P.brownDark);
-    // Flame layers (bottom = red, top = yellow)
-    rect(ctx, 7, 8, 6, 6, P.lava);
-    rect(ctx, 8, 5, 4, 5, P.lavaLight);
-    rect(ctx, 9, 3, 2, 4, P.yellow);
-    // Ember glow
-    px(ctx, 6, 11, P.yellow);
-    px(ctx, 13, 11, P.yellow);
+    // Stone ring
+    rect(ctx, 6, 17, 16, 4, P.gray);
+    rect(ctx, 4, 18, 20, 3, P.gray);
+    rect(ctx, 5, 17, 18, 1, P.grayLight);  // top stone highlight
+    outline(ctx, 4, 17, 20, 5, P.grayDark);
+    // Logs — X pattern inside ring
+    rect(ctx, 6, 15, 8, 4, P.brown);
+    rect(ctx, 14, 15, 8, 4, P.brown);
+    rect(ctx, 5, 16, 18, 3, P.brownDark);
+    // Log texture details
+    px(ctx, 8, 17, P.brownLight); px(ctx, 12, 16, P.brownLight);
+    px(ctx, 17, 17, P.brownLight); px(ctx, 21, 16, P.brownLight);
+    // Embers / coal at base
+    rect(ctx, 11, 16, 6, 2, P.lava);
+    px(ctx, 10, 17, P.magma); px(ctx, 17, 17, P.magma);
+    // Flame layers — bottom wide, top narrow
+    rect(ctx, 9, 9, 10, 7, P.lava);
+    rect(ctx, 10, 7, 8, 5, P.lavaLight);
+    rect(ctx, 11, 5, 6, 4, P.lavaLight);
+    rect(ctx, 12, 3, 4, 4, P.magma);
+    rect(ctx, 13, 1, 2, 4, P.yellow);
+    // Side wisps
+    px(ctx, 8, 10, P.lavaLight); px(ctx, 19, 11, P.lavaLight);
+    px(ctx, 9, 7, P.magma); px(ctx, 18, 8, P.magma);
+    // Ember glow around base
+    px(ctx, 7, 16, P.yellow); px(ctx, 20, 16, P.yellow);
+    px(ctx, 10, 15, P.magma); px(ctx, 17, 15, P.magma);
+    // Shadow under fire
+    rect(ctx, 6, 22, 16, 2, '#00000020');
     drawSpriteOutline(ctx, w, h, P.outline);
     finalize(scene, 'station_campfire');
   }
 
-  // station_workbench: 24x18 — brown table with legs
+  // station_workbench: 28x24
   {
-    const w = 24, h = 18;
+    const w = 28, h = 24;
     const ctx = makeCanvas(scene, 'station_workbench', w, h);
-    // Table top
-    rect(ctx, 1, 4, 22, 5, P.brownLight);
-    rect(ctx, 1, 4, 22, 1, P.offWhite);
-    outline(ctx, 1, 4, 22, 5, P.brownDark);
-    // Table legs
-    rect(ctx, 2, 9, 3, 8, P.brown);
-    rect(ctx, 19, 9, 3, 8, P.brown);
-    // Tools on table (simple shapes)
-    rect(ctx, 5, 2, 4, 2, P.grayLight);   // plank
-    rect(ctx, 13, 1, 2, 3, P.gray);       // handle
-    px(ctx, 14, 1, P.grayLight);
+    // Table top surface
+    rect(ctx, 1, 5, 26, 7, P.brownLight);
+    rect(ctx, 1, 5, 26, 2, P.offWhite);     // top highlight
+    rect(ctx, 1, 10, 26, 2, P.brownDark);   // bottom shadow of top
+    outline(ctx, 1, 5, 26, 7, P.brownDark);
+    // Wood plank lines on surface
+    rect(ctx, 7, 6, 1, 6, P.brown);
+    rect(ctx, 14, 6, 1, 6, P.brown);
+    rect(ctx, 21, 6, 1, 6, P.brown);
+    // Table legs (sturdy)
+    rect(ctx, 2, 12, 5, 11, P.brown);
+    rect(ctx, 21, 12, 5, 11, P.brown);
+    rect(ctx, 3, 12, 3, 11, P.brownLight);  // leg highlight
+    rect(ctx, 22, 12, 3, 11, P.brownLight);
+    rect(ctx, 3, 21, 3, 2, P.brownDark);    // foot
+    rect(ctx, 22, 21, 3, 2, P.brownDark);
+    // Cross brace
+    rect(ctx, 7, 17, 14, 2, P.brownDark);
+    rect(ctx, 7, 17, 14, 1, P.brown);
+    // Tools on table
+    rect(ctx, 4, 3, 6, 2, P.grayLight);    // metal piece
+    rect(ctx, 4, 3, 6, 1, P.white);
+    rect(ctx, 12, 2, 3, 3, P.gray);        // handle/tool
+    px(ctx, 13, 2, P.grayLight);
+    rect(ctx, 18, 1, 6, 4, P.brownLight);  // plank on table
+    rect(ctx, 18, 1, 6, 1, P.offWhite);
+    // Shadow
+    rect(ctx, 2, 23, 24, 1, '#00000020');
     drawSpriteOutline(ctx, w, h, P.outline);
     finalize(scene, 'station_workbench');
   }
 
-  // station_forge: 22x22 — dark gray furnace/anvil
+  // station_forge: 28x24
   {
-    const w = 22, h = 22;
+    const w = 28, h = 24;
     const ctx = makeCanvas(scene, 'station_forge', w, h);
-    // Body
-    rect(ctx, 2, 6, 18, 14, P.grayDeep);
-    rect(ctx, 2, 6, 18, 2, P.grayDark);   // top rim
-    outline(ctx, 2, 6, 18, 14, P.outline);
-    // Opening (glowing hot interior)
-    rect(ctx, 6, 10, 10, 7, P.lavaDark);
-    rect(ctx, 7, 11, 8, 5, P.lava);
-    rect(ctx, 8, 12, 6, 3, P.lavaLight);
-    // Chimney
-    rect(ctx, 8, 1, 6, 6, P.grayDark);
-    rect(ctx, 9, 1, 4, 6, P.grayDeep);
-    // Smoke pixel
-    px(ctx, 10, 0, P.grayLight);
-    px(ctx, 11, 0, P.grayLight);
+    // Base body — wide stone furnace
+    rect(ctx, 2, 7, 24, 15, P.grayDeep);
+    rect(ctx, 2, 7, 24, 3, P.grayDark);    // top face
+    outline(ctx, 2, 7, 24, 15, P.outline);
+    // Side bolts/rivets
+    rect(ctx, 2, 9, 2, 2, P.gray); rect(ctx, 2, 15, 2, 2, P.gray);
+    rect(ctx, 24, 9, 2, 2, P.gray); rect(ctx, 24, 15, 2, 2, P.gray);
+    // Forge opening — large glowing mouth
+    rect(ctx, 7, 11, 14, 9, P.lavaDark);
+    rect(ctx, 8, 12, 12, 7, P.lava);
+    rect(ctx, 9, 13, 10, 5, P.lavaLight);
+    rect(ctx, 11, 14, 6, 3, P.magma);
+    px(ctx, 13, 14, P.yellow); px(ctx, 14, 14, P.yellow);
+    // Arch above opening
+    rect(ctx, 7, 9, 14, 3, P.grayDark);
+    rect(ctx, 8, 9, 12, 2, P.gray);
+    px(ctx, 9, 8, P.grayDark); px(ctx, 10, 8, P.grayDark);
+    px(ctx, 17, 8, P.grayDark); px(ctx, 18, 8, P.grayDark);
+    // Chimney — double-wide
+    rect(ctx, 9, 1, 10, 7, P.grayDark);
+    rect(ctx, 10, 1, 8, 7, P.grayDeep);
+    outline(ctx, 9, 1, 10, 7, P.outline);
+    // Smoke puffs
+    rect(ctx, 11, 0, 3, 1, P.grayLight);
+    rect(ctx, 14, 0, 3, 1, P.gray);
+    px(ctx, 10, 0, P.grayLight); px(ctx, 17, 0, P.gray);
+    // Heat glow from opening
+    px(ctx, 6, 14, P.lava); px(ctx, 21, 14, P.lava);
+    px(ctx, 6, 16, P.lavaDark); px(ctx, 21, 16, P.lavaDark);
+    // Shadow
+    rect(ctx, 2, 22, 24, 2, '#00000030');
     drawSpriteOutline(ctx, w, h, P.outline);
     finalize(scene, 'station_forge');
   }
