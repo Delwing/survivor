@@ -1,26 +1,31 @@
 /**
  * Gathering config — defines how resources are harvested.
- * Each resource type specifies:
- * - requiredTool: what tool type is needed (null = hand)
- * - hitsNeeded: base hits to fully harvest the node
- * - baseYield: items per harvest completion
- * - toolBonuses: better tools reduce hits and increase yield
+ *
+ * Design: basic resources (wood, stone) can always be gathered by hand,
+ * but tools make it much faster and yield more. Higher-tier resources
+ * truly require tools (can't mine obsidian bare-handed).
  */
 
 export interface GatheringConfig {
-  /** Tool type required: 'axe' | 'pickaxe' | null (hand) */
-  requiredTool: 'axe' | 'pickaxe' | null;
-  /** Base hits to deplete one resource unit */
-  hitsNeeded: number;
-  /** Base items per deplete */
-  baseYield: number;
+  /** Tool type that helps: 'axe' | 'pickaxe' | null (hand-only) */
+  preferredTool: 'axe' | 'pickaxe' | null;
+  /** If true, absolutely requires the tool — can't gather without it */
+  toolRequired: boolean;
+  /** Hits needed WITHOUT proper tool (hand gathering) */
+  handHits: number;
+  /** Hits needed WITH proper tool (base, before tool bonuses) */
+  toolHits: number;
+  /** Items yielded per harvest without tool */
+  handYield: number;
+  /** Items yielded per harvest with tool (base, before tool bonuses) */
+  toolYield: number;
 }
 
-/** Tool tier lookup — maps item IDs to their gathering power */
+/** Tool power — maps item IDs to gathering bonuses */
 export interface ToolPower {
   type: 'axe' | 'pickaxe';
   tier: number;
-  hitReduction: number;  // subtract from hitsNeeded (min 1)
+  hitReduction: number;  // subtract from toolHits (min 1)
   yieldBonus: number;    // extra items per harvest
 }
 
@@ -34,41 +39,39 @@ export const TOOL_POWER: Record<string, ToolPower> = {
 };
 
 export const GATHERING_CONFIG: Record<string, GatheringConfig> = {
-  // Tier 1 — hand-gatherables
-  berries:       { requiredTool: null,      hitsNeeded: 1, baseYield: 2 },
-  herbs:         { requiredTool: null,      hitsNeeded: 1, baseYield: 1 },
-  meat:          { requiredTool: null,      hitsNeeded: 1, baseYield: 1 }, // from mobs, not nodes
+  // ── Tier 1 — always hand-gatherable, tools speed it up ──
+  berries:       { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 2, toolYield: 2 },
+  herbs:         { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
+  slime_gel:     { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
+  bone:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
+  hide:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
+  meat:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
 
-  // Tier 1 — need axe
-  wood:          { requiredTool: 'axe',     hitsNeeded: 3, baseYield: 1 },
+  // Wood: hand = slow (5 hits, 1 yield), axe = fast (3 hits, 1 yield), good axe = very fast
+  wood:          { preferredTool: 'axe',     toolRequired: false, handHits: 5, toolHits: 3, handYield: 1, toolYield: 1 },
 
-  // Tier 1 — need pickaxe
-  stone:         { requiredTool: 'pickaxe', hitsNeeded: 3, baseYield: 1 },
+  // Stone: hand = slow (6 hits, 1 yield), pickaxe = fast (3 hits, 1 yield)
+  stone:         { preferredTool: 'pickaxe', toolRequired: false, handHits: 6, toolHits: 3, handYield: 1, toolYield: 1 },
 
-  // Tier 1 — hand (from mobs)
-  slime_gel:     { requiredTool: null,      hitsNeeded: 1, baseYield: 1 },
-  bone:          { requiredTool: null,      hitsNeeded: 1, baseYield: 1 },
-  hide:          { requiredTool: null,      hitsNeeded: 1, baseYield: 1 },
+  // ── Tier 2 — need pickaxe (can't mine ore by hand) ──
+  iron_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 4, handYield: 0, toolYield: 1 },
+  copper_ore:    { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 4, handYield: 0, toolYield: 1 },
+  coal:          { preferredTool: 'pickaxe', toolRequired: false, handHits: 4, toolHits: 2, handYield: 1, toolYield: 2 },
+  crystal:       { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
 
-  // Tier 2 — need pickaxe
-  iron_ore:      { requiredTool: 'pickaxe', hitsNeeded: 4, baseYield: 1 },
-  copper_ore:    { requiredTool: 'pickaxe', hitsNeeded: 4, baseYield: 1 },
-  coal:          { requiredTool: 'pickaxe', hitsNeeded: 3, baseYield: 2 },
-  crystal:       { requiredTool: 'pickaxe', hitsNeeded: 5, baseYield: 1 },
+  // ── Tier 3 — swamp, hand-gatherable but slow ──
+  rare_mushroom: { preferredTool: null,      toolRequired: false, handHits: 2, toolHits: 2, handYield: 1, toolYield: 1 },
+  swamp_reed:    { preferredTool: null,      toolRequired: false, handHits: 2, toolHits: 2, handYield: 2, toolYield: 2 },
 
-  // Tier 3 — hand gatherables (swamp)
-  rare_mushroom: { requiredTool: null,      hitsNeeded: 2, baseYield: 1 },
-  swamp_reed:    { requiredTool: null,      hitsNeeded: 2, baseYield: 2 },
+  // ── Tier 4 — requires tools ──
+  obsidian:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
+  fire_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
+  rare_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
 
-  // Tier 4 — need pickaxe
-  obsidian:      { requiredTool: 'pickaxe', hitsNeeded: 6, baseYield: 1 },
-  fire_crystal:  { requiredTool: 'pickaxe', hitsNeeded: 5, baseYield: 1 },
-  rare_ore:      { requiredTool: 'pickaxe', hitsNeeded: 6, baseYield: 1 },
-
-  // Tier 5 — need axe or pickaxe
-  shadow_essence:{ requiredTool: 'pickaxe', hitsNeeded: 5, baseYield: 1 },
-  void_crystal:  { requiredTool: 'pickaxe', hitsNeeded: 7, baseYield: 1 },
-  corrupted_wood:{ requiredTool: 'axe',     hitsNeeded: 5, baseYield: 1 },
+  // ── Tier 5 — requires tools ──
+  shadow_essence:{ preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
+  void_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 7, handYield: 0, toolYield: 1 },
+  corrupted_wood:{ preferredTool: 'axe',     toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
 };
 
 /** Get the effective gathering result for a resource + equipped weapon */
@@ -78,37 +81,39 @@ export function getGatherResult(
 ): { canGather: boolean; hitsNeeded: number; yield: number; reason?: string } {
   const config = GATHERING_CONFIG[resourceId];
   if (!config) {
-    // Unknown resource — allow hand gathering
     return { canGather: true, hitsNeeded: 1, yield: 1 };
   }
 
-  // No tool required
-  if (!config.requiredTool) {
-    return { canGather: true, hitsNeeded: config.hitsNeeded, yield: config.baseYield };
+  // No preferred tool — always hand-gatherable
+  if (!config.preferredTool) {
+    return { canGather: true, hitsNeeded: config.handHits, yield: config.handYield };
   }
 
-  // Tool required — check if equipped weapon qualifies
-  if (!equippedWeaponId) {
+  // Check if player has the right tool equipped
+  const tool = equippedWeaponId ? TOOL_POWER[equippedWeaponId] : null;
+  const hasTool = tool && tool.type === config.preferredTool;
+
+  if (!hasTool) {
+    // No matching tool
+    if (config.toolRequired) {
+      return {
+        canGather: false,
+        hitsNeeded: 0,
+        yield: 0,
+        reason: `Need ${config.preferredTool}`,
+      };
+    }
+    // Can hand-gather, but slowly
     return {
-      canGather: false,
-      hitsNeeded: config.hitsNeeded,
-      yield: 0,
-      reason: `Need ${config.requiredTool}`,
+      canGather: true,
+      hitsNeeded: config.handHits,
+      yield: config.handYield,
     };
   }
 
-  const tool = TOOL_POWER[equippedWeaponId];
-  if (!tool || tool.type !== config.requiredTool) {
-    return {
-      canGather: false,
-      hitsNeeded: config.hitsNeeded,
-      yield: 0,
-      reason: `Need ${config.requiredTool}`,
-    };
-  }
-
-  const hitsNeeded = Math.max(1, config.hitsNeeded - tool.hitReduction);
-  const yield_ = config.baseYield + tool.yieldBonus;
+  // Has proper tool — apply bonuses
+  const hitsNeeded = Math.max(1, config.toolHits - tool.hitReduction);
+  const yield_ = config.toolYield + tool.yieldBonus;
 
   return { canGather: true, hitsNeeded, yield: yield_ };
 }
