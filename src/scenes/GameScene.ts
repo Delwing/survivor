@@ -192,13 +192,15 @@ export class GameScene extends Phaser.Scene {
         const worldX = (cx * CHUNK_SIZE + col) * TILE_WIDTH / 2;
         const worldY = (cy * CHUNK_SIZE + row) * TILE_HEIGHT;
         const { sx, sy } = worldToScreen(worldX, worldY);
-        const biome = BIOME_DEFINITIONS.find(b => b.id === tile.biomeId);
-        const tileSprite = this.add.sprite(sx, sy, 'tile');
-        tileSprite.setTint(biome?.color ?? 0x228b22);
+        // Use per-biome tile texture, fall back to generic
+        const tileKey = `tile_${tile.biomeId}`;
+        const tileSprite = this.add.sprite(sx, sy, this.textures.exists(tileKey) ? tileKey : 'tile');
         tileSprite.setDepth(-10000 + sy);
         sprites.push(tileSprite);
         if (tile.resourceNodeId) {
-          const resSprite = this.add.sprite(sx, sy - 4, 'resource_node');
+          // Use per-resource texture, fall back to generic
+          const resKey = `res_${tile.resourceNodeId}`;
+          const resSprite = this.add.sprite(sx, sy - 8, this.textures.exists(resKey) ? resKey : 'resource_node');
           resSprite.setDepth(sy);
           sprites.push(resSprite);
         }

@@ -15,8 +15,10 @@ export function createMobState(typeId: string, x: number, y: number): MobState |
 }
 
 export function createMobSprite(scene: Phaser.Scene, x: number, y: number, def: MobDefinition): Phaser.GameObjects.Sprite {
-  const sprite = scene.add.sprite(x, y, 'mob');
-  sprite.setTint(def.color);
+  // Use per-mob texture if available, fall back to generic
+  const mobKey = `mob_${def.id}`;
+  const textureKey = scene.textures.exists(mobKey) ? mobKey : 'mob';
+  const sprite = scene.add.sprite(x, y, textureKey);
   sprite.setOrigin(0.5, 1);
   return sprite;
 }
