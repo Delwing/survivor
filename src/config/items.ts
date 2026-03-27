@@ -4,7 +4,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
   // Tier 1 Resources
   { id: 'wood', name: 'Wood', type: 'resource', tier: 1, stackable: true, maxStack: 99, quality: 'normal', modifiers: [], color: 0x8b4513 },
   { id: 'stone', name: 'Stone', type: 'resource', tier: 1, stackable: true, maxStack: 99, quality: 'normal', modifiers: [], color: 0x808080 },
-  { id: 'berries', name: 'Berries', type: 'resource', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xff6347 },
+  { id: 'berries', name: 'Berries', type: 'consumable', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xff6347 },
   { id: 'herbs', name: 'Herbs', type: 'resource', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0x32cd32 },
   { id: 'meat', name: 'Meat', type: 'resource', tier: 1, stackable: true, maxStack: 20, quality: 'normal', modifiers: [], color: 0xcd5c5c },
   { id: 'hide', name: 'Hide', type: 'resource', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xdeb887 },

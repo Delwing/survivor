@@ -71,6 +71,10 @@ export class GameScene extends Phaser.Scene {
   private knownRecipes = new Set<string>();
   private currentBiomeName = 'Forest';
 
+  private lastStarveDamage = 0;
+  private warnedHungry = false;
+  private warnedStarving = false;
+
   private placedStations: { type: CraftingStation; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
   private buildMenuOpen = false;
   private buildMenuContainer: Phaser.GameObjects.Container | null = null;
@@ -142,6 +146,10 @@ export class GameScene extends Phaser.Scene {
         this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 30);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 HP +30 Food', '#fbbf24');
+      } else if (itemId === 'berries') {
+        this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 15);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 Food', '#fbbf24');
       }
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
     });
@@ -299,7 +307,8 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.emit('run-started', { seed: data.seed });
   }
 
-  update(_time: number, delta: number): void {
+  update(time: number, delta: number): void {
+    this.updateHunger(delta, time);
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
     this.hud.update(this.player, this.currentBiomeName);
@@ -308,6 +317,43 @@ export class GameScene extends Phaser.Scene {
 
     if (this.inventoryPanel?.getContainer().visible) {
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    }
+  }
+
+  private updateHunger(delta: number, time: number): void {
+    const { stats } = this.player;
+
+    // Deplete hunger over time (~1 per second)
+    stats.hunger = Math.max(0, Math.min(stats.maxHunger, stats.hunger - delta * 0.001));
+
+    // One-time threshold warnings
+    if (stats.hunger < 30 && !this.warnedHungry) {
+      this.warnedHungry = true;
+      this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, 'Hungry!', '#fbbf24');
+    }
+    if (stats.hunger < 10 && !this.warnedStarving) {
+      this.warnedStarving = true;
+      this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, 'Starving!', '#ef4444');
+    }
+    // Reset warnings when hunger recovers above threshold
+    if (stats.hunger >= 30) this.warnedHungry = false;
+    if (stats.hunger >= 10) this.warnedStarving = false;
+
+    // Starvation damage
+    if (stats.hunger <= 0) {
+      if (time - this.lastStarveDamage > 2000) {
+        this.lastStarveDamage = time;
+        stats.health = Math.max(0, stats.health - 2);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '-2 HP', '#ef4444');
+        if (stats.health <= 0) this.endRun('Starvation');
+      }
+    } else if (stats.hunger < 10) {
+      if (time - this.lastStarveDamage > 3000) {
+        this.lastStarveDamage = time;
+        stats.health = Math.max(0, stats.health - 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '-1 HP', '#ef4444');
+        if (stats.health <= 0) this.endRun('Starvation');
+      }
     }
   }
 
@@ -352,7 +398,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.playerSprite.setFlipX(dx < 0);
 
-    const speed = this.player.stats.speed * (delta / 1000);
+    const hungerMult = this.player.stats.hunger < 30 ? 0.75 : 1.0;
+    const speed = this.player.stats.speed * hungerMult * (delta / 1000);
     this.playerSprite.x += (dx / dist) * speed;
     this.playerSprite.y += (dy / dist) * speed;
     this.player.position.x = this.playerSprite.x;
