@@ -259,9 +259,10 @@ export class GameScene extends Phaser.Scene {
 
     // Input — click to move or gather
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Ignore clicks on the UI area (bottom 80px of screen)
+      // Ignore clicks on UI areas
       if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
+      if (this.buildMenuOpen) return;
 
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
@@ -967,7 +968,7 @@ export class GameScene extends Phaser.Scene {
     for (const s of this.placedStations) {
       const dx = s.x - px;
       const dy = s.y - py;
-      if (Math.sqrt(dx * dx + dy * dy) < 50) return s.type;
+      if (Math.sqrt(dx * dx + dy * dy) < 80) return s.type;
     }
     return 'hand';
   }

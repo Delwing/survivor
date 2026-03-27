@@ -116,7 +116,9 @@ export class CraftingPanel {
     this.stationTitle.setText(`CRAFTING - ${STATION_NAMES[currentStation] ?? currentStation}`);
 
     // Get all known recipes for this station
-    this._recipes = this.craftingSystem.getKnownRecipes(knownRecipes).filter(r => r.station === currentStation);
+    this._recipes = this.craftingSystem.getKnownRecipes(knownRecipes).filter(r =>
+      this.craftingSystem.stationCanCraft(currentStation, r.station)
+    );
     this.scrollOffset = 0;
     this.refreshRows();
   }
