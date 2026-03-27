@@ -26,6 +26,7 @@ const STATION_NAMES: Record<CraftingStation, string> = {
 export class CraftingPanel {
   private container: Phaser.GameObjects.Container;
   private stationTitle!: Phaser.GameObjects.Text;
+  private scrollIndicator!: Phaser.GameObjects.Text;
   private recipeRows: Phaser.GameObjects.Container[] = [];
   private scrollOffset = 0;
   private _recipes: RecipeDefinition[] = [];
@@ -80,29 +81,68 @@ export class CraftingPanel {
     div.lineBetween(PANEL_X + 16, PANEL_Y + 38, PANEL_X + PANEL_W - 16, PANEL_Y + 38);
     this.container.add(div);
 
-    // Scroll up button
-    const scrollUp = scene.add.text(PANEL_X + PANEL_W - 50, PANEL_Y + 50, '▲', {
-      fontSize: '14px', color: '#94a3b8',
-    }).setInteractive({ useHandCursor: true });
-    scrollUp.on('pointerdown', () => {
+    // Scroll buttons — large, clearly visible, high depth
+    const scrollBtnW = 40;
+    const scrollBtnH = 28;
+    const scrollBtnX = PANEL_X + PANEL_W - 56;
+
+    const scrollUpBg = scene.add.graphics();
+    scrollUpBg.fillStyle(0x334155, 0.9);
+    scrollUpBg.fillRect(scrollBtnX, PANEL_Y + 44, scrollBtnW, scrollBtnH);
+    scrollUpBg.lineStyle(1, 0x475569);
+    scrollUpBg.strokeRect(scrollBtnX, PANEL_Y + 44, scrollBtnW, scrollBtnH);
+    this.container.add(scrollUpBg);
+    const scrollUpText = scene.add.text(scrollBtnX + scrollBtnW / 2, PANEL_Y + 44 + scrollBtnH / 2, '▲', {
+      fontSize: '16px', color: '#e2e8f0',
+    }).setOrigin(0.5);
+    this.container.add(scrollUpText);
+    const scrollUpZone = scene.add.zone(scrollBtnX + scrollBtnW / 2, PANEL_Y + 44 + scrollBtnH / 2, scrollBtnW, scrollBtnH)
+      .setScrollFactor(0).setInteractive({ useHandCursor: true }).setDepth(20003);
+    scrollUpZone.on('pointerdown', () => {
       this.scrollOffset = Math.max(0, this.scrollOffset - 1);
       this.refreshRows();
     });
-    this.container.add(scrollUp);
+    this.container.add(scrollUpZone);
 
-    // Scroll down button
-    const scrollDown = scene.add.text(PANEL_X + PANEL_W - 50, PANEL_Y + PANEL_H - 30, '▼', {
-      fontSize: '14px', color: '#94a3b8',
-    }).setInteractive({ useHandCursor: true });
-    scrollDown.on('pointerdown', () => {
+    const scrollDownBg = scene.add.graphics();
+    scrollDownBg.fillStyle(0x334155, 0.9);
+    scrollDownBg.fillRect(scrollBtnX, PANEL_Y + PANEL_H - 50, scrollBtnW, scrollBtnH);
+    scrollDownBg.lineStyle(1, 0x475569);
+    scrollDownBg.strokeRect(scrollBtnX, PANEL_Y + PANEL_H - 50, scrollBtnW, scrollBtnH);
+    this.container.add(scrollDownBg);
+    const scrollDownText = scene.add.text(scrollBtnX + scrollBtnW / 2, PANEL_Y + PANEL_H - 50 + scrollBtnH / 2, '▼', {
+      fontSize: '16px', color: '#e2e8f0',
+    }).setOrigin(0.5);
+    this.container.add(scrollDownText);
+    const scrollDownZone = scene.add.zone(scrollBtnX + scrollBtnW / 2, PANEL_Y + PANEL_H - 50 + scrollBtnH / 2, scrollBtnW, scrollBtnH)
+      .setScrollFactor(0).setInteractive({ useHandCursor: true }).setDepth(20003);
+    scrollDownZone.on('pointerdown', () => {
       const maxOffset = Math.max(0, this._recipes.length - VISIBLE_ROWS);
       this.scrollOffset = Math.min(maxOffset, this.scrollOffset + 1);
       this.refreshRows();
     });
-    this.container.add(scrollDown);
+    this.container.add(scrollDownZone);
+
+    // Mouse wheel scrolling
+    scene.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: any, _dx: number, dy: number) => {
+      if (!this.container.visible) return;
+      const maxOffset = Math.max(0, this._recipes.length - VISIBLE_ROWS);
+      if (dy > 0) {
+        this.scrollOffset = Math.min(maxOffset, this.scrollOffset + 1);
+      } else if (dy < 0) {
+        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      }
+      this.refreshRows();
+    });
+
+    // Scroll indicator text
+    this.scrollIndicator = scene.add.text(scrollBtnX + scrollBtnW / 2, PANEL_Y + PANEL_H / 2, '', {
+      fontSize: '9px', color: '#64748b',
+    }).setOrigin(0.5);
+    this.container.add(this.scrollIndicator);
 
     // Hint
-    const hint = scene.add.text(PANEL_X + 16, PANEL_Y + PANEL_H - 22, '[C] to close  |  Green = have materials  |  Red = missing materials', {
+    const hint = scene.add.text(PANEL_X + 16, PANEL_Y + PANEL_H - 22, '[C] to close  |  Scroll: wheel or arrows  |  Green = craftable', {
       fontSize: '9px', color: '#475569',
     });
     this.container.add(hint);
@@ -136,6 +176,16 @@ export class CraftingPanel {
     const listW = PANEL_W - 80;
 
     const visibleRecipes = this._recipes.slice(this.scrollOffset, this.scrollOffset + VISIBLE_ROWS);
+
+    // Update scroll indicator
+    if (this.scrollIndicator) {
+      const total = this._recipes.length;
+      if (total > VISIBLE_ROWS) {
+        this.scrollIndicator.setText(`${this.scrollOffset + 1}-${Math.min(this.scrollOffset + VISIBLE_ROWS, total)} / ${total}`);
+      } else {
+        this.scrollIndicator.setText('');
+      }
+    }
 
     for (let i = 0; i < visibleRecipes.length; i++) {
       const recipe = visibleRecipes[i];
