@@ -398,7 +398,7 @@ export class GameScene extends Phaser.Scene {
         // Pick base color from palette using hash
         const baseColor = ground.bases[Math.floor(h * ground.bases.length)];
 
-        // Full diamond fill — single color, no hard split
+        // Full diamond fill — single solid color
         gfx.fillStyle(baseColor);
         gfx.beginPath();
         gfx.moveTo(sx, sy - hh);
@@ -408,31 +408,10 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.fillPath();
 
-        // Subtle top-left highlight (light overlay on upper-left quadrant)
-        gfx.fillStyle(0xffffff, 0.06);
-        gfx.beginPath();
-        gfx.moveTo(sx, sy - hh);
-        gfx.lineTo(sx, sy);
-        gfx.lineTo(sx - hw, sy);
-        gfx.closePath();
-        gfx.fillPath();
-
-        // Subtle bottom-right shadow
-        gfx.fillStyle(0x000000, 0.08);
-        gfx.beginPath();
-        gfx.moveTo(sx + hw, sy);
-        gfx.lineTo(sx, sy);
-        gfx.lineTo(sx, sy + hh);
-        gfx.closePath();
-        gfx.fillPath();
-
-        // Thin edge lines on right & bottom edges only (subtle depth)
-        gfx.lineStyle(1, ground.edge, 0.4);
-        gfx.beginPath();
-        gfx.moveTo(sx + hw, sy);
-        gfx.lineTo(sx, sy + hh);
-        gfx.lineTo(sx - hw, sy);
-        gfx.strokePath();
+        // Thin bottom edge for subtle depth separation
+        gfx.lineStyle(1, ground.edge, 0.35);
+        gfx.lineBetween(sx + hw, sy, sx, sy + hh);
+        gfx.lineBetween(sx, sy + hh, sx - hw, sy);
 
         // Per-biome detail decorations on ~35% of tiles
         if (h2 < 0.35) {
