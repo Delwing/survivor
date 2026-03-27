@@ -100,6 +100,9 @@ export class GameScene extends Phaser.Scene {
   constructor() { super({ key: 'Game' }); }
 
   create(data: { seed: string }): void {
+    // Init music system
+    this.musicSystem = new MusicSystem();
+
     // Init systems
     this.eventBus = new EventBus();
     this.worldSystem = new WorldSystem(data.seed);
@@ -293,6 +296,10 @@ export class GameScene extends Phaser.Scene {
 
     // Input — click to move or gather
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Bootstrap audio on first user interaction (browser autoplay policy)
+      this.musicSystem.init();
+      this.musicSystem.start();
+
       // Ignore clicks consumed by UI
       if (this.inputConsumed) return;
       if (pointer.y > this.cameras.main.height - 80) return;
@@ -409,6 +416,7 @@ export class GameScene extends Phaser.Scene {
       const biome = BIOME_DEFINITIONS.find(b => b.id === eventData.biomeId);
       this.currentBiomeName = biome?.name ?? 'Unknown';
       this.mapPanel?.addExploredChunk(eventData.chunkX, eventData.chunkY, eventData.biomeId);
+      this.musicSystem.setBiome(eventData.biomeId);
     });
 
     // Listen for item pickups — trigger recipe discovery
@@ -1324,6 +1332,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private endRun(cause: string): void {
+    this.musicSystem.stop();
     const survived = this.time.now - this.runStartTime;
     this.progression.recordRunEnd();
     this.progression.save();
