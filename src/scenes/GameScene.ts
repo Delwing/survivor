@@ -17,6 +17,7 @@ import { AbilityBar, AbilitySlot } from '@/ui/AbilityBar';
 import { UIManager } from '@/ui/UIManager';
 import { QuickInventory } from '@/ui/QuickInventory';
 import { InventoryPanel } from '@/ui/InventoryPanel';
+import { CraftingPanel } from '@/ui/CraftingPanel';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
@@ -50,6 +51,7 @@ export class GameScene extends Phaser.Scene {
   private uiManager!: UIManager;
   private quickInventory!: QuickInventory;
   private inventoryPanel!: InventoryPanel;
+  private craftingPanel!: CraftingPanel;
 
   private mobs: { state: MobState; sprite: Phaser.GameObjects.Sprite }[] = [];
   private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
@@ -142,6 +144,28 @@ export class GameScene extends Phaser.Scene {
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 HP +30 Food', '#fbbf24');
       }
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    });
+
+    // Crafting panel
+    this.craftingPanel = new CraftingPanel(
+      this, this.craftingSystem, this.itemSystem, this.eventBus,
+      (itemId: string, count: number) => {
+        const def = getItemDef(itemId);
+        const name = def?.name ?? itemId;
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 24, `+${count} ${name}`, '#fbbf24');
+        this.quickInventory.update(this.player.inventory);
+      },
+    );
+    this.uiManager.registerPanel('crafting', this.craftingPanel.getContainer());
+
+    // C key — toggle crafting panel
+    this.input.keyboard!.on('keydown-C', () => {
+      const station = this.getNearbyStation();
+      this.uiManager.togglePanel('crafting');
+      if (this.uiManager.isOpen()) {
+        this.craftingPanel.show(station);
+        this.craftingPanel.update(this.player.inventory, this.knownRecipes, station);
+      }
     });
 
     // Load starting recipes
