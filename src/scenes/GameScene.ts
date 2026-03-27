@@ -179,17 +179,29 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerMovement(delta: number): void {
-    if (!this.moveTarget) return;
+    if (!this.moveTarget) {
+      // No target — play idle if not already
+      if (this.playerSprite.anims?.currentAnim?.key !== 'player_idle') {
+        this.playerSprite.play('player_idle', true);
+      }
+      return;
+    }
+
     const dx = this.moveTarget.x - this.playerSprite.x;
     const dy = this.moveTarget.y - this.playerSprite.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     // Check if we've arrived at a gather target
     if (this.gatherTarget && dist < GATHER_RANGE) {
+      this.playerSprite.play('player_gather', true);
       this.doGather(this.gatherTarget);
       this.gatherTarget = null;
       this.moveTarget = null;
       this.moveMarker.setVisible(false);
+      // Stay in gather anim briefly, then idle
+      this.time.delayedCall(500, () => {
+        if (!this.moveTarget) this.playerSprite.play('player_idle', true);
+      });
       return;
     }
 
@@ -197,8 +209,15 @@ export class GameScene extends Phaser.Scene {
     if (dist < 3) {
       this.moveTarget = null;
       this.moveMarker.setVisible(false);
+      this.playerSprite.play('player_idle', true);
       return;
     }
+
+    // Walking — play walk anim and flip based on direction
+    if (this.playerSprite.anims?.currentAnim?.key !== 'player_walk') {
+      this.playerSprite.play('player_walk', true);
+    }
+    this.playerSprite.setFlipX(dx < 0);
 
     const speed = this.player.stats.speed * (delta / 1000);
     this.playerSprite.x += (dx / dist) * speed;
@@ -430,10 +449,25 @@ export class GameScene extends Phaser.Scene {
       // Movement
       const dir = MobAI.getMovementDirection(mob.state, playerPos);
       const speed = mob.state.stats.speed * (delta / 1000);
+      const isMoving = dir.dx !== 0 || dir.dy !== 0;
       mob.sprite.x += dir.dx * speed;
       mob.sprite.y += dir.dy * speed;
       mob.state.position.x = mob.sprite.x;
       mob.state.position.y = mob.sprite.y;
+
+      // Flip sprite based on horizontal direction
+      if (dir.dx < -0.1) mob.sprite.setFlipX(true);
+      else if (dir.dx > 0.1) mob.sprite.setFlipX(false);
+
+      // Bob animation when moving (squash/stretch using scaleY)
+      if (isMoving) {
+        const bobPhase = Math.sin(this.time.now * 0.01 + mob.state.position.x) * 0.08;
+        mob.sprite.setScale(1 - bobPhase * 0.5, 1 + bobPhase);
+      } else {
+        // Gentle idle breathing
+        const breathe = Math.sin(this.time.now * 0.003 + mob.state.position.x) * 0.03;
+        mob.sprite.setScale(1, 1 + breathe);
+      }
 
       // Update depth for entity sorting
       mob.sprite.setDepth(mob.sprite.y);

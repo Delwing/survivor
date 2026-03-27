@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PlayerState } from '@/types/entities';
+import { createPlayerAnimations } from '@/graphics/TextureGenerator';
 
 export function createPlayerState(): PlayerState {
   return {
@@ -14,7 +15,9 @@ export function createPlayerState(): PlayerState {
 }
 
 export function createPlayerSprite(scene: Phaser.Scene, x: number, y: number): Phaser.GameObjects.Sprite {
+  createPlayerAnimations(scene);
   const sprite = scene.add.sprite(x, y, 'player');
   sprite.setOrigin(0.5, 1);
+  sprite.play('player_idle');
   return sprite;
 }

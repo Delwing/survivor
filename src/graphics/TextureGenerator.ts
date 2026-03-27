@@ -7,9 +7,43 @@ import Phaser from 'phaser';
  */
 export function generateAllTextures(scene: Phaser.Scene): void {
   generateTileTextures(scene);
-  generatePlayerTexture(scene);
+  generatePlayerSpritesheet(scene);
   generateMobTextures(scene);
   generateResourceTextures(scene);
+}
+
+export function createPlayerAnimations(scene: Phaser.Scene): void {
+  if (scene.anims.exists('player_idle')) return; // already created
+
+  scene.anims.create({
+    key: 'player_idle',
+    frames: [
+      { key: 'player_f0' },
+      { key: 'player_f1' },
+    ],
+    frameRate: 2,
+    repeat: -1,
+  });
+  scene.anims.create({
+    key: 'player_walk',
+    frames: [
+      { key: 'player_f2' },
+      { key: 'player_f3' },
+      { key: 'player_f4' },
+      { key: 'player_f5' },
+    ],
+    frameRate: 8,
+    repeat: -1,
+  });
+  scene.anims.create({
+    key: 'player_gather',
+    frames: [
+      { key: 'player_f6' },
+      { key: 'player_f7' },
+    ],
+    frameRate: 4,
+    repeat: -1,
+  });
 }
 
 // ─── HELPERS ────────────────────────────────────────────
@@ -153,57 +187,149 @@ function drawIsoDiamond(scene: Phaser.Scene, key: string, fill: string, highligh
   finalize(scene, key);
 }
 
-// ─── PLAYER ─────────────────────────────────────────────
+// ─── PLAYER SPRITESHEET ─────────────────────────────────
 
-function generatePlayerTexture(scene: Phaser.Scene): void {
-  // 12x18 pixel art character, will be scaled by the game
-  const w = 12, h = 18;
-  const ctx = makeCanvas(scene, 'player', w, h);
+/**
+ * Generates individual frame textures for player animations:
+ *   player_f0, player_f1: idle
+ *   player_f2..player_f5: walk
+ *   player_f6, player_f7: gather
+ */
+function generatePlayerSpritesheet(scene: Phaser.Scene): void {
+  const fw = 12, fh = 18;
+  const frameDefs: [number, PlayerFrameOpts][] = [
+    [0, { legOffset: 0, bodyBob: 0, armMode: 'normal' }],
+    [1, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
+    [2, { legOffset: -1, bodyBob: 0, armMode: 'swing_left' }],
+    [3, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
+    [4, { legOffset: 1, bodyBob: 0, armMode: 'swing_right' }],
+    [5, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
+    [6, { legOffset: 0, bodyBob: 1, armMode: 'gather' }],
+    [7, { legOffset: 0, bodyBob: 0, armMode: 'gather_up' }],
+  ];
+
+  for (const [idx, opts] of frameDefs) {
+    const key = `player_f${idx}`;
+    const ctx = makeCanvas(scene, key, fw, fh);
+    drawPlayerFrame(ctx, 0, opts); // always draw at offset 0 (each frame is its own canvas)
+    drawFrameOutline(ctx, 0, 0, fw, fh, P.outline);
+    finalize(scene, key);
+  }
+
+  // Also generate a default 'player' texture (frame 0) for initial sprite creation
+  const defCtx = makeCanvas(scene, 'player', fw, fh);
+  drawPlayerFrame(defCtx, 0, { legOffset: 0, bodyBob: 0, armMode: 'normal' });
+  drawFrameOutline(defCtx, 0, 0, fw, fh, P.outline);
+  finalize(scene, 'player');
+}
+
+interface PlayerFrameOpts {
+  legOffset: number;    // -1 = left forward, 0 = neutral, 1 = right forward
+  bodyBob: number;      // vertical offset for body/head (-1 = up, 1 = down)
+  armMode: 'normal' | 'swing_left' | 'swing_right' | 'gather' | 'gather_up';
+}
+
+function drawPlayerFrame(ctx: CanvasRenderingContext2D, frameIdx: number, opts: PlayerFrameOpts): void {
+  const fw = 12;
+  const ox = frameIdx * fw; // x offset for this frame
+  const by = opts.bodyBob;  // body vertical shift
 
   // Shadow
-  rect(ctx, 3, 16, 6, 2, '#00000040');
+  rect(ctx, ox + 3, 16, 6, 2, '#00000040');
 
-  // Boots
-  rect(ctx, 3, 14, 2, 2, P.brownDark);
-  rect(ctx, 7, 14, 2, 2, P.brownDark);
+  // Left leg
+  const llOff = opts.legOffset === -1 ? -1 : (opts.legOffset === 1 ? 1 : 0);
+  rect(ctx, ox + 3, 12 + llOff, 2, 2, P.brownLight);
+  rect(ctx, ox + 3, 14 + llOff, 2, 2, P.brownDark);
 
-  // Legs (pants)
-  rect(ctx, 3, 12, 2, 2, P.brownLight);
-  rect(ctx, 7, 12, 2, 2, P.brownLight);
+  // Right leg
+  const rlOff = opts.legOffset === 1 ? -1 : (opts.legOffset === -1 ? 1 : 0);
+  rect(ctx, ox + 7, 12 + rlOff, 2, 2, P.brownLight);
+  rect(ctx, ox + 7, 14 + rlOff, 2, 2, P.brownDark);
 
   // Body
-  rect(ctx, 3, 7, 6, 5, P.blue);
-  // Body shade
-  rect(ctx, 3, 10, 6, 2, P.blueDark);
+  rect(ctx, ox + 3, 7 + by, 6, 5, P.blue);
+  rect(ctx, ox + 3, 10 + by, 6, 2, P.blueDark);
   // Belt
-  rect(ctx, 3, 11, 6, 1, P.brown);
+  rect(ctx, ox + 3, 11 + by, 6, 1, P.brown);
 
-  // Arms
-  rect(ctx, 2, 7, 1, 4, P.blue);
-  rect(ctx, 9, 7, 1, 4, P.blue);
-  // Hands
-  px(ctx, 2, 11, P.skin);
-  px(ctx, 9, 11, P.skin);
+  // Arms depend on mode
+  switch (opts.armMode) {
+    case 'normal':
+      rect(ctx, ox + 2, 7 + by, 1, 4, P.blue);
+      rect(ctx, ox + 9, 7 + by, 1, 4, P.blue);
+      px(ctx, ox + 2, 11 + by, P.skin);
+      px(ctx, ox + 9, 11 + by, P.skin);
+      break;
+    case 'swing_left':
+      rect(ctx, ox + 1, 7 + by, 1, 3, P.blue);  // left arm forward
+      rect(ctx, ox + 9, 8 + by, 1, 4, P.blue);   // right arm back
+      px(ctx, ox + 1, 10 + by, P.skin);
+      px(ctx, ox + 9, 12 + by, P.skin);
+      break;
+    case 'swing_right':
+      rect(ctx, ox + 2, 8 + by, 1, 4, P.blue);   // left arm back
+      rect(ctx, ox + 10, 7 + by, 1, 3, P.blue);  // right arm forward
+      px(ctx, ox + 2, 12 + by, P.skin);
+      px(ctx, ox + 10, 10 + by, P.skin);
+      break;
+    case 'gather':
+      rect(ctx, ox + 1, 9 + by, 2, 1, P.blue);   // arms reaching forward-down
+      rect(ctx, ox + 9, 9 + by, 2, 1, P.blue);
+      px(ctx, ox + 1, 10 + by, P.skin);
+      px(ctx, ox + 10, 10 + by, P.skin);
+      break;
+    case 'gather_up':
+      rect(ctx, ox + 1, 8 + by, 2, 1, P.blue);   // arms reaching up
+      rect(ctx, ox + 9, 8 + by, 2, 1, P.blue);
+      px(ctx, ox + 1, 9 + by, P.skin);
+      px(ctx, ox + 10, 9 + by, P.skin);
+      break;
+  }
 
   // Head
-  rect(ctx, 4, 2, 4, 5, P.skin);
-  // Head shade
-  rect(ctx, 4, 5, 4, 2, P.skinShade);
+  rect(ctx, ox + 4, 2 + by, 4, 5, P.skin);
+  rect(ctx, ox + 4, 5 + by, 4, 2, P.skinShade);
 
   // Eyes
-  px(ctx, 5, 4, P.outline);
-  px(ctx, 7, 4, P.outline);
+  px(ctx, ox + 5, 4 + by, P.outline);
+  px(ctx, ox + 7, 4 + by, P.outline);
 
   // Hair
-  rect(ctx, 4, 1, 4, 2, P.hair);
-  px(ctx, 3, 2, P.hair);
-  px(ctx, 8, 2, P.hair);
-  rect(ctx, 4, 0, 4, 1, P.hairLight);
+  rect(ctx, ox + 4, 1 + by, 4, 2, P.hair);
+  px(ctx, ox + 3, 2 + by, P.hair);
+  px(ctx, ox + 8, 2 + by, P.hair);
+  rect(ctx, ox + 4, 0 + by, 4, 1, P.hairLight);
 
-  // Outline the whole character
-  drawSpriteOutline(ctx, w, h, P.outline);
+  // Outline this frame
+  drawFrameOutline(ctx, frameIdx * fw, 0, fw, 18, P.outline);
+}
 
-  finalize(scene, 'player');
+/** Outline only within a specific frame region of the spritesheet. */
+function drawFrameOutline(ctx: CanvasRenderingContext2D, fx: number, fy: number, fw: number, fh: number, color: string): void {
+  const imageData = ctx.getImageData(fx, fy, fw, fh);
+  const data = imageData.data;
+  const outlinePixels: [number, number][] = [];
+
+  for (let y = 0; y < fh; y++) {
+    for (let x = 0; x < fw; x++) {
+      const alpha = data[(y * fw + x) * 4 + 3];
+      if (alpha > 0) continue;
+      const neighbors = [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]];
+      for (const [nx, ny] of neighbors) {
+        if (nx < 0 || nx >= fw || ny < 0 || ny >= fh) continue;
+        if (data[(ny * fw + nx) * 4 + 3] > 20) {
+          outlinePixels.push([x, y]);
+          break;
+        }
+      }
+    }
+  }
+
+  ctx.fillStyle = color;
+  for (const [x, y] of outlinePixels) {
+    ctx.fillRect(fx + x, fy + y, 1, 1);
+  }
 }
 
 // ─── MOBS ───────────────────────────────────────────────
