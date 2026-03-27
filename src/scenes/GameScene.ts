@@ -9,7 +9,7 @@ import { ProgressionSystem } from '@/systems/ProgressionSystem';
 import { createPlayerState, createPlayerSprite } from '@/entities/Player';
 import { TILE_WIDTH, TILE_HEIGHT, CHUNK_SIZE, RENDER_RADIUS } from '@/config/game-config';
 import { BIOME_DEFINITIONS } from '@/config/biomes';
-import { worldToScreen } from '@/utils/iso';
+import { worldToScreen, screenToWorld } from '@/utils/iso';
 import { chunkKey, distance } from '@/utils/math';
 import { PlayerState, MobState } from '@/types/entities';
 import { HUD } from '@/ui/HUD';
@@ -279,8 +279,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateChunkTracking(): void {
-    const approxChunkX = Math.floor(this.playerSprite.x / (CHUNK_SIZE * TILE_WIDTH / 2));
-    const approxChunkY = Math.floor(this.playerSprite.y / (CHUNK_SIZE * TILE_HEIGHT));
+    // Player sprite is in screen space — convert back to world space for chunk lookup
+    const { wx, wy } = screenToWorld(this.playerSprite.x, this.playerSprite.y);
+    const approxChunkX = Math.floor(wx / (CHUNK_SIZE * TILE_WIDTH / 2));
+    const approxChunkY = Math.floor(wy / (CHUNK_SIZE * TILE_HEIGHT));
     if (approxChunkX !== this.currentChunkX || approxChunkY !== this.currentChunkY) {
       this.currentChunkX = approxChunkX;
       this.currentChunkY = approxChunkY;
