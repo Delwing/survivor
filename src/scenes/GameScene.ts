@@ -66,6 +66,7 @@ export class GameScene extends Phaser.Scene {
   private spawnedChunks = new Set<string>();
   private lastPlayerAttack = 0;
   private gatherTarget: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite } | null = null;
+  private stationTarget: { type: CraftingStation; x: number; y: number } | null = null;
   private moveMarker!: Phaser.GameObjects.Graphics;
   private hoveredResource: Phaser.GameObjects.Sprite | null = null;
   private tooltip!: Phaser.GameObjects.Text;
@@ -272,11 +273,24 @@ export class GameScene extends Phaser.Scene {
       if (this.uiManager.isOpen()) return;
       if (this.buildMenuOpen) return;
 
+      // Check if clicking a station — walk to it, then open crafting
+      for (const station of this.placedStations) {
+        const d = distance(pointer.worldX, pointer.worldY, station.x, station.y);
+        if (d < 35) {
+          this.stationTarget = station;
+          this.gatherTarget = null;
+          this.moveTarget = { x: station.x, y: station.y };
+          this.showMoveMarker(station.x, station.y, true);
+          return;
+        }
+      }
+
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
         if (d < 30 && res.state.remaining > 0) {
           this.gatherTarget = res;
+          this.stationTarget = null;
           this.moveTarget = { x: res.sprite.x, y: res.sprite.y };
           this.showMoveMarker(res.sprite.x, res.sprite.y, true);
           return;
@@ -285,6 +299,7 @@ export class GameScene extends Phaser.Scene {
 
       // Normal movement
       this.gatherTarget = null;
+      this.stationTarget = null;
       this.moveTarget = { x: pointer.worldX, y: pointer.worldY };
       this.showMoveMarker(pointer.worldX, pointer.worldY, false);
     });
@@ -299,7 +314,20 @@ export class GameScene extends Phaser.Scene {
       this.input.setDefaultCursor('default');
       this.tooltip.setVisible(false);
 
-      // Check mob hover first (higher priority)
+      // Check station hover
+      for (const station of this.placedStations) {
+        const d = distance(pointer.worldX, pointer.worldY, station.x, station.y);
+        if (d < 35) {
+          const stationName = station.type.replace(/_/g, ' ');
+          this.tooltip.setText(`${stationName}  (click to craft)`);
+          this.tooltip.setPosition(pointer.x + 12, pointer.y - 8);
+          this.tooltip.setVisible(true);
+          this.input.setDefaultCursor('pointer');
+          return;
+        }
+      }
+
+      // Check mob hover
       for (const mob of this.mobs) {
         if (mob.state.stats.health <= 0) continue;
         const d = distance(pointer.worldX, pointer.worldY, mob.sprite.x, mob.sprite.y - 10);
@@ -467,6 +495,20 @@ export class GameScene extends Phaser.Scene {
     const dx = this.moveTarget.x - this.playerSprite.x;
     const dy = this.moveTarget.y - this.playerSprite.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
+
+    // Check if we've arrived at a station target
+    if (this.stationTarget && dist < GATHER_RANGE) {
+      const stationType = this.stationTarget.type;
+      this.stationTarget = null;
+      this.moveTarget = null;
+      this.moveMarker.setVisible(false);
+      this.playerSprite.play('player_idle', true);
+      // Open crafting for this station
+      this.craftingPanel.show(stationType);
+      this.craftingPanel.update(this.player.inventory, this.knownRecipes, stationType);
+      this.uiManager.togglePanel('crafting');
+      return;
+    }
 
     // Check if we've arrived at a gather target
     if (this.gatherTarget && dist < GATHER_RANGE) {
