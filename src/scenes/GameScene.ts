@@ -16,6 +16,7 @@ import { HUD } from '@/ui/HUD';
 import { AbilityBar, AbilitySlot } from '@/ui/AbilityBar';
 import { UIManager } from '@/ui/UIManager';
 import { QuickInventory } from '@/ui/QuickInventory';
+import { InventoryPanel } from '@/ui/InventoryPanel';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
@@ -47,6 +48,7 @@ export class GameScene extends Phaser.Scene {
   private abilityBar!: AbilityBar;
   private uiManager!: UIManager;
   private quickInventory!: QuickInventory;
+  private inventoryPanel!: InventoryPanel;
 
   private mobs: { state: MobState; sprite: Phaser.GameObjects.Sprite }[] = [];
   private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
@@ -93,6 +95,48 @@ export class GameScene extends Phaser.Scene {
     ];
     this.abilityBar = new AbilityBar(this, abilities);
     this.quickInventory = new QuickInventory(this);
+
+    // Inventory panel
+    this.inventoryPanel = new InventoryPanel(this, this.itemSystem, this.eventBus);
+    this.uiManager.registerPanel('inventory', this.inventoryPanel.getContainer());
+
+    // I key — toggle inventory
+    this.input.keyboard!.on('keydown-I', () => {
+      this.uiManager.togglePanel('inventory');
+      if (this.uiManager.isOpen()) {
+        this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+      }
+    });
+
+    // Equipment-changed event
+    this.eventBus.on('equipment-changed', (data: { slot: string; itemId: string }) => {
+      if (data.slot === 'weapon') {
+        this.player.equipment.weapon = data.itemId;
+        const def = getItemDef(data.itemId);
+        if (def?.stats?.attack) this.player.stats.attack = def.stats.attack;
+        if (def?.stats?.attackSpeed) this.player.stats.attackSpeed = def.stats.attackSpeed;
+      } else if (data.slot === 'armor') {
+        this.player.equipment.armor = data.itemId;
+        const def = getItemDef(data.itemId);
+        if (def?.stats?.defense) this.player.stats.defense = def.stats.defense;
+      }
+    });
+
+    // Consumable-used event
+    this.eventBus.on('consumable-used', (data: { itemId: string }) => {
+      const { itemId } = data;
+      if (itemId === 'bandage') {
+        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 20);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+20 HP', '#86efac');
+      } else if (itemId === 'cooked_meat') {
+        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 15);
+        this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 30);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 HP +30 Food', '#fbbf24');
+      }
+      this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    });
 
     // Load starting recipes
     this.knownRecipes = new Set(this.progression.getStartingRecipeIds());
@@ -218,6 +262,10 @@ export class GameScene extends Phaser.Scene {
     this.hud.update(this.player, this.currentBiomeName);
     this.quickInventory.update(this.player.inventory);
     this.updateMobs(delta);
+
+    if (this.inventoryPanel?.getContainer().visible) {
+      this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    }
   }
 
   private updatePlayerMovement(delta: number): void {

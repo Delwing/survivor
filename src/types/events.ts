@@ -12,4 +12,7 @@ export interface GameEvents {
   'damage-dealt': { attackerId: string; defenderId: string; damage: number };
   'run-started': { seed: string };
   'run-ended': { survived: number; recipesFound: number };
+  'equipment-changed': { slot: string; itemId: string };
+  'consumable-used': { itemId: string };
+  'station-placed': { type: string; x: number; y: number };
 }
