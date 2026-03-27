@@ -11,6 +11,7 @@ export interface ItemModifier {
 export interface ItemDefinition {
   id: string;
   name: string;
+  description?: string;
   type: ItemType;
   tier: 1 | 2 | 3 | 4 | 5;
   stackable: boolean;

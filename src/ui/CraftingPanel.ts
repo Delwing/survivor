@@ -10,8 +10,8 @@ const PANEL_X = 60;
 const PANEL_Y = 30;
 const PANEL_W = 840;
 const PANEL_H = 480;
-const ROW_H = 72;
-const VISIBLE_ROWS = 6;
+const ROW_H = 88;
+const VISIBLE_ROWS = 4;
 
 const STATION_NAMES: Record<CraftingStation, string> = {
   hand: 'Hand',
@@ -225,9 +225,47 @@ export class CraftingPanel {
       });
       rowContainer.add(nameText);
 
+      // Description
+      const outputDef = getItemDef(recipe.output.item);
+      const desc = outputDef?.description ?? '';
+      if (desc) {
+        const descText = scene.add.text(listX + 34, rowY + 24, desc, {
+          fontSize: '8px', color: '#94a3b8', wordWrap: { width: listW - 120 },
+        });
+        rowContainer.add(descText);
+      }
+
+      // Stat tags (ATK, DEF, SPD, etc.)
+      const stats = outputDef?.stats;
+      if (stats) {
+        let tagX = listX + 34;
+        const tagY = rowY + 38;
+        const statEntries: [string, string, string][] = [];
+        if (stats.attack) statEntries.push(['ATK', `+${stats.attack}`, '#f87171']);
+        if (stats.defense) statEntries.push(['DEF', `+${stats.defense}`, '#60a5fa']);
+        if (stats.attackSpeed) statEntries.push(['SPD', `${stats.attackSpeed}x`, '#fbbf24']);
+        if (stats.speed) statEntries.push(['MOV', `+${stats.speed}`, '#34d399']);
+
+        for (const [label, value, color] of statEntries) {
+          const tagBg = scene.add.graphics();
+          const tagW = 48;
+          tagBg.fillStyle(0x0f172a, 0.8);
+          tagBg.fillRect(tagX, tagY, tagW, 14);
+          tagBg.lineStyle(1, Phaser.Display.Color.HexStringToColor(color).color, 0.5);
+          tagBg.strokeRect(tagX, tagY, tagW, 14);
+          rowContainer.add(tagBg);
+
+          const tagText = scene.add.text(tagX + tagW / 2, tagY + 7, `${label} ${value}`, {
+            fontSize: '8px', color, fontStyle: 'bold',
+          }).setOrigin(0.5);
+          rowContainer.add(tagText);
+          tagX += tagW + 4;
+        }
+      }
+
       // Ingredients list with icons
       let ingX = listX + 34;
-      const ingY = rowY + 28;
+      const ingY = rowY + 56;
       for (const ing of recipe.ingredients) {
         const have = this.itemSystem.getItemCount(this._inventory, ing.item);
         const ingDef = getItemDef(ing.item);
@@ -235,7 +273,6 @@ export class CraftingPanel {
         const enough = have >= ing.count;
         const ingColor = enough ? '#86efac' : '#f87171';
 
-        // Ingredient icon
         const ingIconKey = `item_${ing.item}`;
         if (scene.textures.exists(ingIconKey)) {
           const ingIcon = scene.add.image(ingX + 5, ingY + 4, ingIconKey);
