@@ -40,6 +40,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
   { id: 'health_potion', name: 'Health Potion', type: 'consumable', tier: 3, stackable: true, maxStack: 5, quality: 'normal', modifiers: [], color: 0xff0000 },
   // Misc
   { id: 'gold_coin', name: 'Gold Coin', type: 'misc', tier: 1, stackable: true, maxStack: 999, quality: 'normal', modifiers: [], color: 0xffd700 },
+  { id: 'recipe_scroll', name: 'Recipe Scroll', type: 'misc', tier: 1, stackable: true, maxStack: 10, quality: 'normal', modifiers: [], color: 0xf5e6c8 },
 ];
 
 export function getItemDef(id: string): ItemDefinition | undefined {

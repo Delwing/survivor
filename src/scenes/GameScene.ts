@@ -24,6 +24,7 @@ import { createMobState, createMobSprite } from '@/entities/Mob';
 import { ResourceNodeState } from '@/entities/ResourceNode';
 import { getItemDef } from '@/config/items';
 import { CraftingStation } from '@/types/items';
+import { RECIPE_DEFINITIONS } from '@/config/recipes';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
@@ -74,6 +75,8 @@ export class GameScene extends Phaser.Scene {
   private lastStarveDamage = 0;
   private warnedHungry = false;
   private warnedStarving = false;
+
+  private discoveredMaterials = new Set<string>();
 
   private placedStations: { type: CraftingStation; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
   private buildMenuOpen = false;
@@ -303,6 +306,11 @@ export class GameScene extends Phaser.Scene {
       this.currentBiomeName = biome?.name ?? 'Unknown';
     });
 
+    // Listen for item pickups — trigger recipe discovery
+    this.eventBus.on('item-picked-up', (data: { itemId: string; count: number }) => {
+      this.handleItemPickedUp(data.itemId);
+    });
+
     this.runStartTime = this.time.now;
     this.eventBus.emit('run-started', { seed: data.seed });
   }
@@ -317,6 +325,34 @@ export class GameScene extends Phaser.Scene {
 
     if (this.inventoryPanel?.getContainer().visible) {
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
+    }
+  }
+
+  private handleItemPickedUp(itemId: string): void {
+    // Handle recipe scroll
+    if (itemId === 'recipe_scroll') {
+      const undiscovered = RECIPE_DEFINITIONS.filter(r => r.discovery === 'scroll' && !this.knownRecipes.has(r.id));
+      if (undiscovered.length > 0) {
+        const recipe = undiscovered[Math.floor(Math.random() * undiscovered.length)];
+        this.knownRecipes.add(recipe.id);
+        this.progression.addRecipe(recipe.id);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, `Learned: ${recipe.name}!`, '#ffd700');
+      }
+      this.itemSystem.removeItem(this.player.inventory, 'recipe_scroll', 1);
+      return;
+    }
+
+    // Material-triggered discovery (only once per material type)
+    if (!this.discoveredMaterials.has(itemId)) {
+      this.discoveredMaterials.add(itemId);
+      const triggered = this.craftingSystem.checkMaterialDiscovery(itemId);
+      for (const recipe of triggered) {
+        if (!this.knownRecipes.has(recipe.id)) {
+          this.knownRecipes.add(recipe.id);
+          this.progression.addRecipe(recipe.id);
+          this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, `New recipe: ${recipe.name}!`, '#fbbf24');
+        }
+      }
     }
   }
 
