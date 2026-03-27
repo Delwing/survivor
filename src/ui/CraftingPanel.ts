@@ -155,36 +155,50 @@ export class CraftingPanel {
       rowContainer.add(rowBg);
 
       // Output item icon
-      const outputDef = getItemDef(recipe.output.item);
-      const iconColor = outputDef?.color ?? 0x888888;
-      const icon = scene.add.graphics();
-      icon.fillStyle(iconColor, 1);
-      icon.fillRect(listX + 6, rowY + 10, 20, 20);
-      icon.lineStyle(1, 0x334155);
-      icon.strokeRect(listX + 6, rowY + 10, 20, 20);
-      rowContainer.add(icon);
+      const outputIconKey = `item_${recipe.output.item}`;
+      if (scene.textures.exists(outputIconKey)) {
+        const iconImg = scene.add.image(listX + 16, rowY + 20, outputIconKey);
+        iconImg.setDisplaySize(20, 20);
+        rowContainer.add(iconImg);
+      } else {
+        const outputDef = getItemDef(recipe.output.item);
+        const icon = scene.add.graphics();
+        icon.fillStyle(outputDef?.color ?? 0x888888, 1);
+        icon.fillRect(listX + 6, rowY + 10, 20, 20);
+        rowContainer.add(icon);
+      }
 
       // Recipe name + output count
-      const outputLabel = `${recipe.name}  →  x${recipe.output.count}`;
+      const outputLabel = `${recipe.name}  x${recipe.output.count}`;
       const nameText = scene.add.text(listX + 34, rowY + 8, outputLabel, {
         fontSize: '11px', color: '#e2e8f0', fontStyle: 'bold',
       });
       rowContainer.add(nameText);
 
-      // Ingredients list
+      // Ingredients list with icons
       let ingX = listX + 34;
-      const ingY = rowY + 26;
+      const ingY = rowY + 28;
       for (const ing of recipe.ingredients) {
         const have = this.itemSystem.getItemCount(this._inventory, ing.item);
         const ingDef = getItemDef(ing.item);
         const ingName = ingDef?.name ?? ing.item;
         const enough = have >= ing.count;
         const ingColor = enough ? '#86efac' : '#f87171';
+
+        // Ingredient icon
+        const ingIconKey = `item_${ing.item}`;
+        if (scene.textures.exists(ingIconKey)) {
+          const ingIcon = scene.add.image(ingX + 5, ingY + 4, ingIconKey);
+          ingIcon.setDisplaySize(10, 10);
+          rowContainer.add(ingIcon);
+          ingX += 14;
+        }
+
         const ingText = scene.add.text(ingX, ingY, `${ingName} ${have}/${ing.count}`, {
           fontSize: '9px', color: ingColor,
         });
         rowContainer.add(ingText);
-        ingX += ingText.width + 10;
+        ingX += ingText.width + 12;
       }
 
       // Craft button

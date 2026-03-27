@@ -39,10 +39,10 @@ export class QuickInventory {
       this.itemImages.push(null);
 
       const countText = scene.add.text(
-        x + SLOT_SIZE - 2, bottom + SLOT_SIZE - 2,
+        x + SLOT_SIZE - 1, bottom + 1,
         '',
-        { fontSize: '9px', color: '#ffffff', stroke: '#000000', strokeThickness: 2 }
-      ).setOrigin(1, 1);
+        { fontSize: '8px', color: '#ffffff', stroke: '#000000', strokeThickness: 2, fontStyle: 'bold' }
+      ).setOrigin(1, 0);
       this.container.add(countText);
       this.countTexts.push(countText);
 
@@ -121,8 +121,8 @@ export class QuickInventory {
         this.countTexts[i].setText(slot.count > 1 ? String(slot.count) : '');
         this.nameTexts[i].setText(def?.name?.slice(0, 6) ?? slot.itemId.slice(0, 6));
 
-        // Update text positions
-        this.countTexts[i].setPosition(x + SLOT_SIZE - 2, bottom + SLOT_SIZE - 2);
+        // Update text positions — count overlays top-right of slot
+        this.countTexts[i].setPosition(x + SLOT_SIZE - 1, bottom + 1);
         this.nameTexts[i].setPosition(x + SLOT_SIZE / 2, bottom + SLOT_SIZE + 2);
       } else {
         this.countTexts[i].setText('');

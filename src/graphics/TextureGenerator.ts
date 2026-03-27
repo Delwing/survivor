@@ -921,32 +921,46 @@ function drawSpriteOutline(ctx: CanvasRenderingContext2D, w: number, h: number, 
 export function generateItemIcons(scene: Phaser.Scene): void {
   // ── Resources: natural ────────────────────────────────
 
-  // wood — horizontal brown log with end-rings
+  // wood — two stacked logs with visible grain
   {
     const ctx = makeCanvas(scene, 'item_wood', 10, 10);
-    rect(ctx, 1, 3, 8, 4, P.brown);
-    rect(ctx, 1, 3, 8, 1, P.brownLight); // highlight top
-    rect(ctx, 1, 6, 8, 1, P.brownDark);  // shadow bottom
-    // end rings
-    rect(ctx, 1, 3, 2, 4, P.brownLight);
-    px(ctx, 2, 4, P.brownDark);
-    px(ctx, 2, 5, P.brownDark);
-    rect(ctx, 7, 3, 2, 4, P.brownLight);
-    px(ctx, 7, 4, P.brownDark);
-    px(ctx, 7, 5, P.brownDark);
+    // Bottom log
+    rect(ctx, 1, 5, 8, 3, P.brown);
+    rect(ctx, 1, 5, 8, 1, P.brownLight);
+    px(ctx, 3, 6, P.brownDark); px(ctx, 6, 6, P.brownDark); // grain lines
+    // Top log (offset)
+    rect(ctx, 2, 2, 7, 3, P.brownLight);
+    rect(ctx, 2, 2, 7, 1, '#c8905a');
+    px(ctx, 4, 3, P.brown); px(ctx, 7, 3, P.brown); // grain
+    // Cut end circles
+    px(ctx, 1, 6, P.brownDark); px(ctx, 8, 6, P.brownDark);
+    px(ctx, 2, 3, P.brown); px(ctx, 8, 3, P.brown);
+    // Ring detail on cut end
+    px(ctx, 8, 5, '#d4a06a');
+    px(ctx, 8, 2, '#d4a06a');
     drawSpriteOutline(ctx, 10, 10, P.outline);
     finalize(scene, 'item_wood');
   }
 
-  // stone — irregular gray rock
+  // stone — chunky rock with facets and highlight
   {
     const ctx = makeCanvas(scene, 'item_stone', 10, 10);
-    rect(ctx, 2, 4, 6, 4, P.gray);
-    rect(ctx, 3, 2, 5, 2, P.gray);
-    rect(ctx, 4, 1, 3, 1, P.grayLight);
-    rect(ctx, 2, 4, 6, 1, P.grayLight);  // top highlight
-    rect(ctx, 2, 7, 6, 1, P.grayDark);   // bottom shadow
-    px(ctx, 3, 5, P.grayLight);
+    // Main body
+    rect(ctx, 1, 4, 8, 4, P.gray);
+    rect(ctx, 2, 3, 7, 1, P.gray);
+    rect(ctx, 3, 2, 5, 1, P.grayLight);
+    // Top facet (lighter)
+    rect(ctx, 2, 3, 3, 2, P.grayLight);
+    px(ctx, 3, 2, P.grayLight);
+    // Bottom-right shadow
+    rect(ctx, 6, 6, 3, 2, P.grayDark);
+    px(ctx, 8, 5, P.grayDark);
+    // Specular highlight
+    px(ctx, 3, 3, '#c8c8c8');
+    px(ctx, 4, 3, '#c8c8c8');
+    // Crack detail
+    px(ctx, 5, 5, P.grayDark);
+    px(ctx, 6, 4, P.grayDark);
     drawSpriteOutline(ctx, 10, 10, P.outline);
     finalize(scene, 'item_stone');
   }
