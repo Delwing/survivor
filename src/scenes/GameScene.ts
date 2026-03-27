@@ -22,9 +22,10 @@ import { ResourceNodeState } from '@/entities/ResourceNode';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
-// A rendered chunk: tile sprites + resource node sprites
+// A rendered chunk: one graphics object for tiles + individual sprites for resources
 interface RenderedChunk {
-  sprites: Phaser.GameObjects.Sprite[];
+  tileGraphics: Phaser.GameObjects.Graphics;
+  resourceSprites: Phaser.GameObjects.Sprite[];
 }
 
 export class GameScene extends Phaser.Scene {
@@ -308,16 +309,14 @@ export class GameScene extends Phaser.Scene {
     // Remove old chunks
     for (const [key, rendered] of this.renderedChunks) {
       if (!neededKeys.has(key)) {
-        rendered.sprites.forEach(s => s.destroy());
+        rendered.tileGraphics.destroy();
+        rendered.resourceSprites.forEach(s => s.destroy());
         this.renderedChunks.delete(key);
       }
     }
 
     // Remove resource nodes from unloaded chunks
-    this.resourceNodes = this.resourceNodes.filter(r => {
-      if (r.sprite.active) return true;
-      return false;
-    });
+    this.resourceNodes = this.resourceNodes.filter(r => r.sprite.active);
 
     // Add new chunks
     for (const key of neededKeys) {
@@ -329,9 +328,27 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Biome fill colors for tile drawing */
+  private static readonly BIOME_COLORS: Record<string, [number, number, number]> = {
+    forest:            [0x3e8948, 0x63c74d, 0x265c42],
+    rocky_highlands:   [0x8b8b8b, 0xb0b0b0, 0x5a5a5a],
+    swamp:             [0x3d6b3d, 0x2a4a2a, 0x5e4a30],
+    volcanic_wastes:   [0x8b1a1a, 0xd62b2b, 0x3a3a3a],
+    corrupted_lands:   [0x3d0066, 0x6b21a8, 0x1a0033],
+  };
+
+  /**
+   * Draw all tiles in a chunk as a single Graphics object (1 draw call per chunk).
+   * Resource nodes are still individual sprites for interaction.
+   */
   private renderChunk(cx: number, cy: number): void {
     const chunk = this.worldSystem.getChunk(cx, cy);
-    const sprites: Phaser.GameObjects.Sprite[] = [];
+    const gfx = this.add.graphics();
+    gfx.setDepth(-10000);
+
+    const resourceSprites: Phaser.GameObjects.Sprite[] = [];
+    const hw = TILE_WIDTH / 2; // 24
+    const hh = TILE_HEIGHT / 2; // 12
 
     for (let row = 0; row < CHUNK_SIZE; row++) {
       for (let col = 0; col < CHUNK_SIZE; col++) {
@@ -340,21 +357,47 @@ export class GameScene extends Phaser.Scene {
         const worldY = (cy * CHUNK_SIZE + row) * TILE_HEIGHT;
         const { sx, sy } = worldToScreen(worldX, worldY);
 
-        // Tile sprite
-        const tileKey = `tile_${tile.biomeId}`;
-        const useKey = this.textures.exists(tileKey) ? tileKey : 'tile';
-        const tileSprite = this.add.sprite(sx, sy, useKey);
-        tileSprite.setDepth(-10000 + sy);
-        sprites.push(tileSprite);
+        // Draw isometric diamond for this tile
+        const colors = GameScene.BIOME_COLORS[tile.biomeId] ?? [0x3e8948, 0x63c74d, 0x265c42];
 
-        // Resource node
+        // Top half (highlight)
+        gfx.fillStyle(colors[1]);
+        gfx.beginPath();
+        gfx.moveTo(sx, sy - hh);
+        gfx.lineTo(sx + hw, sy);
+        gfx.lineTo(sx, sy);
+        gfx.lineTo(sx - hw, sy);
+        gfx.closePath();
+        gfx.fillPath();
+
+        // Bottom half (shade)
+        gfx.fillStyle(colors[2]);
+        gfx.beginPath();
+        gfx.moveTo(sx - hw, sy);
+        gfx.lineTo(sx, sy);
+        gfx.lineTo(sx + hw, sy);
+        gfx.lineTo(sx, sy + hh);
+        gfx.closePath();
+        gfx.fillPath();
+
+        // Outline
+        gfx.lineStyle(1, 0x1a1a2e, 0.3);
+        gfx.beginPath();
+        gfx.moveTo(sx, sy - hh);
+        gfx.lineTo(sx + hw, sy);
+        gfx.lineTo(sx, sy + hh);
+        gfx.lineTo(sx - hw, sy);
+        gfx.closePath();
+        gfx.strokePath();
+
+        // Resource node as individual sprite (for interaction)
         if (tile.resourceNodeId) {
           const resKey = `res_${tile.resourceNodeId}`;
           const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
           const resSprite = this.add.sprite(sx, sy - 8, resUseKey);
           resSprite.setOrigin(0.5, 1);
           resSprite.setDepth(sy);
-          sprites.push(resSprite);
+          resourceSprites.push(resSprite);
 
           this.resourceNodes.push({
             state: {
@@ -369,7 +412,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.renderedChunks.set(chunkKey(cx, cy), { sprites });
+    this.renderedChunks.set(chunkKey(cx, cy), { tileGraphics: gfx, resourceSprites });
   }
 
   private spawnEntitiesForChunk(cx: number, cy: number): void {
