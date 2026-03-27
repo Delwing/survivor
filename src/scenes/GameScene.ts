@@ -12,10 +12,15 @@ import { TILE_WIDTH, TILE_HEIGHT, CHUNK_SIZE, RENDER_RADIUS } from '@/config/gam
 import { BIOME_DEFINITIONS } from '@/config/biomes';
 import { worldToScreen } from '@/utils/iso';
 import { chunkKey } from '@/utils/math';
-import { PlayerState } from '@/types/entities';
+import { PlayerState, MobState } from '@/types/entities';
 import { HUD } from '@/ui/HUD';
 import { AbilityBar, AbilitySlot } from '@/ui/AbilityBar';
 import { UIManager } from '@/ui/UIManager';
+import { MobAI } from '@/systems/MobAI';
+import { MOB_DEFINITIONS } from '@/config/mobs';
+import { createMobState, createMobSprite } from '@/entities/Mob';
+import { ResourceNodeState, createResourceNode, createResourceSprite } from '@/entities/ResourceNode';
+import { distance } from '@/utils/math';
 
 export class GameScene extends Phaser.Scene {
   private eventBus!: EventBus;
@@ -33,6 +38,11 @@ export class GameScene extends Phaser.Scene {
   private hud!: HUD;
   private abilityBar!: AbilityBar;
   private uiManager!: UIManager;
+
+  private mobs: { state: MobState; sprite: Phaser.GameObjects.Sprite }[] = [];
+  private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
+  private spawnedChunks = new Set<string>();
+  private lastPlayerAttack = 0;
 
   private tileSprites = new Map<string, Phaser.GameObjects.Sprite[]>();
   private currentChunkX = 0;
@@ -77,12 +87,26 @@ export class GameScene extends Phaser.Scene {
     this.currentChunkX = 0;
     this.currentChunkY = 0;
     this.moveTarget = null;
+    this.mobs = [];
+    this.resourceNodes = [];
+    this.spawnedChunks = new Set();
+    this.lastPlayerAttack = 0;
 
     // Render initial chunks
     this.updateChunks();
 
     // Input — click to move
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Check resource nodes first
+      for (const res of this.resourceNodes) {
+        const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
+        if (d < 20 && res.state.remaining > 0) {
+          res.state.remaining--;
+          this.itemSystem.addItem(this.player.inventory, res.state.itemId, 1);
+          if (res.state.remaining <= 0) res.sprite.setAlpha(0.2);
+          return;
+        }
+      }
       this.moveTarget = { x: pointer.worldX, y: pointer.worldY };
     });
 
@@ -106,6 +130,7 @@ export class GameScene extends Phaser.Scene {
     this.updateChunkTracking();
     depthSort(this);
     this.hud.update(this.player, this.currentBiomeName);
+    this.updateMobs(delta);
   }
 
   private updatePlayerMovement(delta: number): void {
@@ -153,6 +178,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.tileSprites.has(key)) {
         const [cx, cy] = key.split(',').map(Number);
         this.renderChunk(cx, cy);
+        this.spawnEntitiesForChunk(cx, cy);
       }
     }
   }
@@ -179,6 +205,86 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.tileSprites.set(chunkKey(cx, cy), sprites);
+  }
+
+  private spawnEntitiesForChunk(cx: number, cy: number): void {
+    const key = chunkKey(cx, cy);
+    if (this.spawnedChunks.has(key)) return;
+    this.spawnedChunks.add(key);
+
+    const chunk = this.worldSystem.getChunk(cx, cy);
+    const centerTile = chunk.tiles[Math.floor(CHUNK_SIZE / 2)][Math.floor(CHUNK_SIZE / 2)];
+    const biome = BIOME_DEFINITIONS.find(b => b.id === centerTile.biomeId);
+    if (!biome) return;
+
+    const mobCount = Math.floor(Math.random() * biome.mobDensity);
+    for (let i = 0; i < mobCount; i++) {
+      const validMobs = MOB_DEFINITIONS.filter(m => biome.mobs.includes(m.id));
+      if (validMobs.length === 0) continue;
+      const mobDef = validMobs[Math.floor(Math.random() * validMobs.length)];
+      const tileX = Math.floor(Math.random() * CHUNK_SIZE);
+      const tileY = Math.floor(Math.random() * CHUNK_SIZE);
+      const worldX = (cx * CHUNK_SIZE + tileX) * TILE_WIDTH / 2;
+      const worldY = (cy * CHUNK_SIZE + tileY) * TILE_HEIGHT;
+      const { sx, sy } = worldToScreen(worldX, worldY);
+      const state = createMobState(mobDef.id, sx, sy);
+      if (!state) continue;
+      const sprite = createMobSprite(this, sx, sy, mobDef);
+      this.mobs.push({ state, sprite });
+    }
+  }
+
+  private updateMobs(delta: number): void {
+    const playerPos = { x: this.playerSprite.x, y: this.playerSprite.y };
+
+    for (const mob of this.mobs) {
+      if (mob.state.stats.health <= 0) continue;
+
+      const def = MOB_DEFINITIONS.find(m => m.id === mob.state.typeId);
+      if (!def) continue;
+
+      // Update AI
+      mob.state = MobAI.update(mob.state, playerPos, def.category);
+
+      // Movement
+      const dir = MobAI.getMovementDirection(mob.state, playerPos);
+      const speed = mob.state.stats.speed * (delta / 1000);
+      mob.sprite.x += dir.dx * speed;
+      mob.sprite.y += dir.dy * speed;
+      mob.state.position.x = mob.sprite.x;
+      mob.state.position.y = mob.sprite.y;
+
+      // Mob auto-attack player
+      if (mob.state.aiState === 'attack') {
+        const now = this.time.now;
+        if (this.combatSystem.canAttack(mob.state.stats.attackSpeed, mob.state.lastAttackTime, now)) {
+          this.combatSystem.applyDamage(mob.state.id, 'player', mob.state.stats, this.player.stats);
+          mob.state.lastAttackTime = now;
+          if (this.player.stats.health <= 0) {
+            this.endRun('Killed by ' + (def.name ?? 'a mob'));
+          }
+        }
+      }
+
+      // Player auto-attack nearest mob in range
+      const distToPlayer = distance(mob.sprite.x, mob.sprite.y, this.playerSprite.x, this.playerSprite.y);
+      if (distToPlayer < 40 && mob.state.stats.health > 0) {
+        const now = this.time.now;
+        if (this.combatSystem.canAttack(this.player.stats.attackSpeed, this.lastPlayerAttack, now)) {
+          this.combatSystem.applyDamage('player', mob.state.id, this.player.stats, mob.state.stats);
+          this.lastPlayerAttack = now;
+          if (mob.state.stats.health <= 0) {
+            mob.sprite.setAlpha(0.3);
+            this.eventBus.emit('mob-killed', { mobId: mob.state.id, mobTypeId: mob.state.typeId });
+            for (const drop of def.drops) {
+              if (Math.random() <= drop.chance) {
+                this.itemSystem.addItem(this.player.inventory, drop.itemId, drop.count);
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   private useDash(): void {
