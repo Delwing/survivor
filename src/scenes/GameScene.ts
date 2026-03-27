@@ -89,6 +89,7 @@ export class GameScene extends Phaser.Scene {
   private buildMenuOpen = false;
   private buildMenuContainer: Phaser.GameObjects.Container | null = null;
   private pendingBuild: CraftingStation | null = null;
+  private inputBlockedUntil = 0; // timestamp to block clicks after UI actions
 
   constructor() { super({ key: 'Game' }); }
 
@@ -263,6 +264,7 @@ export class GameScene extends Phaser.Scene {
       if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
       if (this.buildMenuOpen) return;
+      if (this.time.now < this.inputBlockedUntil) return;
 
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
@@ -1043,11 +1045,12 @@ export class GameScene extends Phaser.Scene {
           for (const ingredient of opt.items) {
             scene.itemSystem.removeItem(scene.player.inventory, ingredient.item, ingredient.count);
           }
-          // Place immediately next to the player (offset slightly to the right)
+          // Place immediately next to the player
           const placeX = scene.playerSprite.x + 30;
           const placeY = scene.playerSprite.y + 5;
           scene.placeStation(opt.type, placeX, placeY);
           scene.closeBuildMenu();
+          scene.inputBlockedUntil = scene.time.now + 200;
         });
         container.add(hitZone);
       }
@@ -1062,6 +1065,7 @@ export class GameScene extends Phaser.Scene {
       this.buildMenuContainer = null;
     }
     this.buildMenuOpen = false;
+    this.inputBlockedUntil = this.time.now + 200;
   }
 
   private placeStation(type: CraftingStation, worldX: number, worldY: number): void {
