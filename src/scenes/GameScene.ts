@@ -89,7 +89,8 @@ export class GameScene extends Phaser.Scene {
   private buildMenuOpen = false;
   private buildMenuContainer: Phaser.GameObjects.Container | null = null;
   private pendingBuild: CraftingStation | null = null;
-  private inputBlockedUntil = 0; // timestamp to block clicks after UI actions
+  /** Set to true by any UI click handler; cleared at start of each frame */
+  inputConsumed = false;
 
   constructor() { super({ key: 'Game' }); }
 
@@ -258,13 +259,18 @@ export class GameScene extends Phaser.Scene {
     // Render initial chunks
     this.updateChunks();
 
+    // Any interactive game object clicked = consume input (don't walk)
+    this.input.on('gameobjectdown', () => {
+      this.inputConsumed = true;
+    });
+
     // Input — click to move or gather
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Ignore clicks on UI areas
+      // Ignore clicks consumed by UI
+      if (this.inputConsumed) return;
       if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
       if (this.buildMenuOpen) return;
-      if (this.time.now < this.inputBlockedUntil) return;
 
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
@@ -354,6 +360,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    this.inputConsumed = false;
     this.updateHunger(delta, time);
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
@@ -1050,7 +1057,7 @@ export class GameScene extends Phaser.Scene {
           const placeY = scene.playerSprite.y + 5;
           scene.placeStation(opt.type, placeX, placeY);
           scene.closeBuildMenu();
-          scene.inputBlockedUntil = scene.time.now + 200;
+          scene.inputConsumed = true;
         });
         container.add(hitZone);
       }
@@ -1065,7 +1072,7 @@ export class GameScene extends Phaser.Scene {
       this.buildMenuContainer = null;
     }
     this.buildMenuOpen = false;
-    this.inputBlockedUntil = this.time.now + 200;
+    this.inputConsumed = true;
   }
 
   private placeStation(type: CraftingStation, worldX: number, worldY: number): void {

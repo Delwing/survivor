@@ -36,7 +36,11 @@ export class AbilityBar {
       this.container.add(text);
 
       const hitZone = scene.add.zone(x + slotSize / 2, bottom + slotSize / 2, slotSize, slotSize).setScrollFactor(0).setInteractive({ useHandCursor: true });
-      hitZone.on('pointerdown', ability.onActivate);
+      hitZone.on('pointerdown', () => {
+        ability.onActivate();
+        // Mark input as consumed so scene doesn't process as movement
+        (scene as any).inputConsumed = true;
+      });
       hitZone.setDepth(10001);
 
       this.slots.push({ bg, text });
