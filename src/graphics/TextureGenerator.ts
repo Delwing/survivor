@@ -10,6 +10,7 @@ export function generateAllTextures(scene: Phaser.Scene): void {
   generatePlayerSpritesheet(scene);
   generateMobTextures(scene);
   generateResourceTextures(scene);
+  generateStationTextures(scene);
 }
 
 export function createPlayerAnimations(scene: Phaser.Scene): void {
@@ -806,6 +807,70 @@ function drawReeds(scene: Phaser.Scene, key: string, stalk: string, dark: string
   rect(ctx, 5, 2, 2, 2, stalk);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
+}
+
+// ─── STATION TEXTURES ────────────────────────────────────
+
+function generateStationTextures(scene: Phaser.Scene): void {
+  // station_campfire: 20x20 — brown logs + orange/red flame
+  {
+    const w = 20, h = 20;
+    const ctx = makeCanvas(scene, 'station_campfire', w, h);
+    // Log base (brown X shape)
+    rect(ctx, 3, 13, 6, 3, P.brown);
+    rect(ctx, 11, 13, 6, 3, P.brown);
+    rect(ctx, 4, 12, 12, 2, P.brownDark);
+    // Flame layers (bottom = red, top = yellow)
+    rect(ctx, 7, 8, 6, 6, P.lava);
+    rect(ctx, 8, 5, 4, 5, P.lavaLight);
+    rect(ctx, 9, 3, 2, 4, P.yellow);
+    // Ember glow
+    px(ctx, 6, 11, P.yellow);
+    px(ctx, 13, 11, P.yellow);
+    drawSpriteOutline(ctx, w, h, P.outline);
+    finalize(scene, 'station_campfire');
+  }
+
+  // station_workbench: 24x18 — brown table with legs
+  {
+    const w = 24, h = 18;
+    const ctx = makeCanvas(scene, 'station_workbench', w, h);
+    // Table top
+    rect(ctx, 1, 4, 22, 5, P.brownLight);
+    rect(ctx, 1, 4, 22, 1, P.offWhite);
+    outline(ctx, 1, 4, 22, 5, P.brownDark);
+    // Table legs
+    rect(ctx, 2, 9, 3, 8, P.brown);
+    rect(ctx, 19, 9, 3, 8, P.brown);
+    // Tools on table (simple shapes)
+    rect(ctx, 5, 2, 4, 2, P.grayLight);   // plank
+    rect(ctx, 13, 1, 2, 3, P.gray);       // handle
+    px(ctx, 14, 1, P.grayLight);
+    drawSpriteOutline(ctx, w, h, P.outline);
+    finalize(scene, 'station_workbench');
+  }
+
+  // station_forge: 22x22 — dark gray furnace/anvil
+  {
+    const w = 22, h = 22;
+    const ctx = makeCanvas(scene, 'station_forge', w, h);
+    // Body
+    rect(ctx, 2, 6, 18, 14, P.grayDeep);
+    rect(ctx, 2, 6, 18, 2, P.grayDark);   // top rim
+    outline(ctx, 2, 6, 18, 14, P.outline);
+    // Opening (glowing hot interior)
+    rect(ctx, 6, 10, 10, 7, P.lavaDark);
+    rect(ctx, 7, 11, 8, 5, P.lava);
+    rect(ctx, 8, 12, 6, 3, P.lavaLight);
+    // Chimney
+    rect(ctx, 8, 1, 6, 6, P.grayDark);
+    rect(ctx, 9, 1, 4, 6, P.grayDeep);
+    // Smoke pixel
+    px(ctx, 10, 0, P.grayLight);
+    px(ctx, 11, 0, P.grayLight);
+    drawSpriteOutline(ctx, w, h, P.outline);
+    finalize(scene, 'station_forge');
+  }
 }
 
 // ─── OUTLINE HELPER ─────────────────────────────────────

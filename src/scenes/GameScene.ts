@@ -22,6 +22,7 @@ import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
 import { ResourceNodeState } from '@/entities/ResourceNode';
 import { getItemDef } from '@/config/items';
+import { CraftingStation } from '@/types/items';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
@@ -67,6 +68,11 @@ export class GameScene extends Phaser.Scene {
   private runStartTime = 0;
   private knownRecipes = new Set<string>();
   private currentBiomeName = 'Forest';
+
+  private placedStations: { type: CraftingStation; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
+  private buildMenuOpen = false;
+  private buildMenuContainer: Phaser.GameObjects.Container | null = null;
+  private pendingBuild: CraftingStation | null = null;
 
   constructor() { super({ key: 'Game' }); }
 
@@ -180,6 +186,14 @@ export class GameScene extends Phaser.Scene {
       if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
 
+      // Pending station placement
+      if (this.pendingBuild) {
+        this.placeStation(this.pendingBuild, pointer.worldX, pointer.worldY);
+        this.pendingBuild = null;
+        this.input.setDefaultCursor('default');
+        return;
+      }
+
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
@@ -244,6 +258,11 @@ export class GameScene extends Phaser.Scene {
     // ESC — debug die
     this.input.keyboard!.on('keydown-ESC', () => {
       this.endRun('Debug exit');
+    });
+
+    // B key — open build menu
+    this.input.keyboard!.on('keydown-B', () => {
+      this.toggleBuildMenu();
     });
 
     // Listen for biome changes
@@ -781,6 +800,115 @@ export class GameScene extends Phaser.Scene {
     if (dist === 0) return;
     this.playerSprite.x += (dx / dist) * 80;
     this.playerSprite.y += (dy / dist) * 80;
+  }
+
+  getNearbyStation(): CraftingStation {
+    const px = this.playerSprite.x;
+    const py = this.playerSprite.y;
+    for (const s of this.placedStations) {
+      const dx = s.x - px;
+      const dy = s.y - py;
+      if (Math.sqrt(dx * dx + dy * dy) < 50) return s.type;
+    }
+    return 'hand';
+  }
+
+  private toggleBuildMenu(): void {
+    if (this.buildMenuOpen) {
+      this.closeBuildMenu();
+    } else {
+      this.openBuildMenu();
+    }
+  }
+
+  private openBuildMenu(): void {
+    if (this.buildMenuOpen) return;
+    this.buildMenuOpen = true;
+
+    const scene = this;
+    const container = this.add.container(0, 0);
+    container.setScrollFactor(0);
+    container.setDepth(25000);
+
+    const menuW = 220;
+    const menuH = 150;
+    const menuX = 20;
+    const menuY = this.cameras.main.height - 240;
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x0f172a, 0.95);
+    bg.fillRect(menuX, menuY, menuW, menuH);
+    bg.lineStyle(1, 0x475569);
+    bg.strokeRect(menuX, menuY, menuW, menuH);
+    container.add(bg);
+
+    const title = this.add.text(menuX + 10, menuY + 8, 'BUILD  [B to close]', {
+      fontSize: '11px', color: '#e2e8f0', fontStyle: 'bold',
+    });
+    container.add(title);
+
+    type BuildOption = { type: CraftingStation; label: string; cost: string; items: { item: string; count: number }[] };
+    const options: BuildOption[] = [
+      { type: 'campfire', label: 'Campfire', cost: '5 Wood + 3 Stone', items: [{ item: 'wood', count: 5 }, { item: 'stone', count: 3 }] },
+      { type: 'workbench', label: 'Workbench', cost: '8 Wood + 5 Stone', items: [{ item: 'wood', count: 8 }, { item: 'stone', count: 5 }] },
+      { type: 'forge', label: 'Forge', cost: '10 Stone + 5 Iron + 3 Coal', items: [{ item: 'stone', count: 10 }, { item: 'iron_ore', count: 5 }, { item: 'coal', count: 3 }] },
+    ];
+
+    options.forEach((opt, i) => {
+      const rowY = menuY + 32 + i * 36;
+      const canBuild = this.itemSystem.hasItems(this.player.inventory, opt.items);
+      const color = canBuild ? '#e2e8f0' : '#94a3b8';
+
+      const rowBg = this.add.graphics();
+      rowBg.fillStyle(canBuild ? 0x1e3a5f : 0x1e293b, 0.7);
+      rowBg.fillRect(menuX + 8, rowY, menuW - 16, 30);
+      container.add(rowBg);
+
+      const nameText = this.add.text(menuX + 14, rowY + 5, opt.label, {
+        fontSize: '11px', color, fontStyle: 'bold',
+      });
+      container.add(nameText);
+
+      const costText = this.add.text(menuX + 14, rowY + 18, opt.cost, {
+        fontSize: '8px', color: canBuild ? '#86efac' : '#f87171',
+      });
+      container.add(costText);
+
+      if (canBuild) {
+        const hitZone = this.add.zone(menuX + menuW / 2, rowY + 15, menuW - 16, 30)
+          .setScrollFactor(0).setInteractive({ useHandCursor: true });
+        hitZone.setDepth(25001);
+        hitZone.on('pointerdown', () => {
+          // Deduct resources
+          for (const ingredient of opt.items) {
+            scene.itemSystem.removeItem(scene.player.inventory, ingredient.item, ingredient.count);
+          }
+          scene.pendingBuild = opt.type;
+          scene.input.setDefaultCursor('crosshair');
+          scene.closeBuildMenu();
+        });
+        container.add(hitZone);
+      }
+    });
+
+    this.buildMenuContainer = container;
+  }
+
+  private closeBuildMenu(): void {
+    if (this.buildMenuContainer) {
+      this.buildMenuContainer.destroy();
+      this.buildMenuContainer = null;
+    }
+    this.buildMenuOpen = false;
+  }
+
+  private placeStation(type: CraftingStation, worldX: number, worldY: number): void {
+    const textureKey = `station_${type}`;
+    const sprite = this.add.sprite(worldX, worldY, textureKey);
+    sprite.setDepth(worldY + 1);
+    this.placedStations.push({ type, x: worldX, y: worldY, sprite });
+    this.showFloatingText(worldX, worldY - 20, `${type} placed!`, '#86efac');
+    this.eventBus.emit('station-placed', { type, x: worldX, y: worldY });
   }
 
   private endRun(cause: string): void {
