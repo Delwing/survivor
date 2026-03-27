@@ -13,6 +13,9 @@ import { BIOME_DEFINITIONS } from '@/config/biomes';
 import { worldToScreen } from '@/utils/iso';
 import { chunkKey } from '@/utils/math';
 import { PlayerState } from '@/types/entities';
+import { HUD } from '@/ui/HUD';
+import { AbilityBar, AbilitySlot } from '@/ui/AbilityBar';
+import { UIManager } from '@/ui/UIManager';
 
 export class GameScene extends Phaser.Scene {
   private eventBus!: EventBus;
@@ -26,6 +29,10 @@ export class GameScene extends Phaser.Scene {
   private player!: PlayerState;
   private playerSprite!: Phaser.GameObjects.Sprite;
   private moveTarget: { x: number; y: number } | null = null;
+
+  private hud!: HUD;
+  private abilityBar!: AbilityBar;
+  private uiManager!: UIManager;
 
   private tileSprites = new Map<string, Phaser.GameObjects.Sprite[]>();
   private currentChunkX = 0;
@@ -52,6 +59,15 @@ export class GameScene extends Phaser.Scene {
     const spawnScreen = worldToScreen(0, 0);
     this.playerSprite = createPlayerSprite(this, spawnScreen.sx, spawnScreen.sy);
     this.cameras.main.startFollow(this.playerSprite, true, 0.1, 0.1);
+
+    this.hud = new HUD(this);
+    this.uiManager = new UIManager(this);
+    const abilities: AbilitySlot[] = [
+      { id: 'dash', label: '💨', cooldown: 0, maxCooldown: 3000, onActivate: () => this.useDash() },
+      { id: 'power_strike', label: '⚔️', cooldown: 0, maxCooldown: 5000, onActivate: () => {} },
+      { id: 'consumable', label: '🧪', cooldown: 0, maxCooldown: 1000, onActivate: () => {} },
+    ];
+    this.abilityBar = new AbilityBar(this, abilities);
 
     // Load starting recipes
     this.knownRecipes = new Set(this.progression.getStartingRecipeIds());
@@ -89,6 +105,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
     depthSort(this);
+    this.hud.update(this.player, this.currentBiomeName);
   }
 
   private updatePlayerMovement(delta: number): void {
@@ -162,6 +179,16 @@ export class GameScene extends Phaser.Scene {
       }
     }
     this.tileSprites.set(chunkKey(cx, cy), sprites);
+  }
+
+  private useDash(): void {
+    if (!this.moveTarget) return;
+    const dx = this.moveTarget.x - this.playerSprite.x;
+    const dy = this.moveTarget.y - this.playerSprite.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist === 0) return;
+    this.playerSprite.x += (dx / dist) * 80;
+    this.playerSprite.y += (dy / dist) * 80;
   }
 
   private endRun(cause: string): void {
