@@ -1470,4 +1470,447 @@ export function generateItemIcons(scene: Phaser.Scene): void {
     drawSpriteOutline(ctx, 10, 10, P.outline);
     finalize(scene, 'item_recipe_scroll');
   }
+
+  // ── Tier 1 Crafted ────────────────────────────────────
+
+  // bone_club — thick bone weapon
+  {
+    const ctx = makeCanvas(scene, 'item_bone_club', 10, 10);
+    // Club head (wide top)
+    rect(ctx, 2, 1, 5, 4, P.offWhite);
+    rect(ctx, 2, 1, 5, 1, P.white);
+    rect(ctx, 3, 4, 3, 1, P.offWhite);
+    // Handle
+    rect(ctx, 4, 5, 2, 4, '#c8b890');
+    rect(ctx, 4, 5, 1, 4, P.offWhite);
+    // Knuckle details
+    px(ctx, 3, 2, P.grayLight);
+    px(ctx, 5, 3, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_bone_club');
+  }
+
+  // leather_armor — brown chestplate
+  {
+    const ctx = makeCanvas(scene, 'item_leather_armor', 10, 10);
+    rect(ctx, 1, 2, 3, 2, '#c9a87a');
+    rect(ctx, 6, 2, 3, 2, '#c9a87a');
+    rect(ctx, 1, 4, 8, 5, '#c9a87a');
+    rect(ctx, 2, 2, 6, 7, '#c9a87a');
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    rect(ctx, 2, 4, 1, 5, '#deb887');
+    rect(ctx, 2, 4, 6, 1, '#deb887');
+    px(ctx, 4, 5, '#a07855');
+    px(ctx, 5, 5, '#a07855');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_leather_armor');
+  }
+
+  // stone_axe — stone head + wood handle
+  {
+    const ctx = makeCanvas(scene, 'item_stone_axe', 10, 10);
+    rect(ctx, 4, 5, 2, 5, P.brown);
+    rect(ctx, 2, 1, 4, 5, P.gray);
+    rect(ctx, 2, 1, 4, 1, P.grayLight);
+    rect(ctx, 2, 5, 4, 1, P.grayDark);
+    px(ctx, 3, 3, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_stone_axe');
+  }
+
+  // bone_arrow — thin bone shaft with point
+  {
+    const ctx = makeCanvas(scene, 'item_bone_arrow', 10, 10);
+    // Shaft
+    rect(ctx, 4, 2, 1, 7, P.offWhite);
+    // Arrowhead
+    px(ctx, 3, 1, P.grayLight);
+    px(ctx, 4, 0, P.grayLight);
+    px(ctx, 5, 1, P.grayLight);
+    px(ctx, 4, 1, P.gray);
+    // Fletching
+    px(ctx, 3, 8, P.red);
+    px(ctx, 5, 8, P.red);
+    px(ctx, 3, 9, P.red);
+    px(ctx, 5, 9, P.red);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_bone_arrow');
+  }
+
+  // herbal_wrap — green bandage
+  {
+    const ctx = makeCanvas(scene, 'item_herbal_wrap', 10, 10);
+    rect(ctx, 2, 3, 6, 5, '#88cc88');
+    rect(ctx, 2, 3, 6, 1, '#aaeeaa');
+    rect(ctx, 2, 7, 6, 1, '#558855');
+    rect(ctx, 4, 4, 2, 3, P.green);
+    rect(ctx, 3, 5, 4, 1, P.green);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_herbal_wrap');
+  }
+
+  // berry_jam — red jar
+  {
+    const ctx = makeCanvas(scene, 'item_berry_jam', 10, 10);
+    // Lid
+    rect(ctx, 3, 1, 4, 2, '#c8a060');
+    // Jar body
+    rect(ctx, 2, 3, 6, 6, '#cc3333');
+    rect(ctx, 2, 3, 6, 1, '#ee5555');
+    rect(ctx, 2, 8, 6, 1, '#881818');
+    // Label
+    rect(ctx, 3, 5, 4, 2, '#f5e6c8');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_berry_jam');
+  }
+
+  // ── Tier 2 Crafted ────────────────────────────────────
+
+  // copper_ingot — copper rectangular bar
+  {
+    const ctx = makeCanvas(scene, 'item_copper_ingot', 10, 10);
+    rect(ctx, 1, 3, 8, 5, '#b87333');
+    rect(ctx, 2, 2, 6, 1, '#b87333');
+    rect(ctx, 1, 3, 8, 1, '#d4963a');
+    rect(ctx, 1, 7, 8, 1, '#8a5520');
+    rect(ctx, 1, 3, 1, 5, '#d4963a');
+    rect(ctx, 8, 3, 1, 5, '#8a5520');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_copper_ingot');
+  }
+
+  // copper_sword — copper blade pointing up
+  {
+    const ctx = makeCanvas(scene, 'item_copper_sword', 10, 10);
+    rect(ctx, 4, 1, 2, 6, '#d4963a');
+    px(ctx, 4, 0, '#b87333');
+    px(ctx, 5, 0, '#b87333');
+    rect(ctx, 4, 1, 1, 6, '#e0a840');
+    rect(ctx, 5, 3, 1, 4, '#8a5520');
+    rect(ctx, 2, 7, 6, 1, '#b87333');
+    rect(ctx, 4, 8, 2, 2, P.brownDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_copper_sword');
+  }
+
+  // copper_armor — copper chestplate
+  {
+    const ctx = makeCanvas(scene, 'item_copper_armor', 10, 10);
+    rect(ctx, 1, 2, 3, 2, '#b87333');
+    rect(ctx, 6, 2, 3, 2, '#b87333');
+    rect(ctx, 1, 4, 8, 5, '#b87333');
+    rect(ctx, 2, 2, 6, 7, '#b87333');
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    rect(ctx, 2, 4, 1, 5, '#d4963a');
+    rect(ctx, 2, 4, 6, 1, '#d4963a');
+    px(ctx, 4, 5, '#8a5520');
+    px(ctx, 5, 5, '#8a5520');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_copper_armor');
+  }
+
+  // crystal_lens — blue diamond shape
+  {
+    const ctx = makeCanvas(scene, 'item_crystal_lens', 10, 10);
+    px(ctx, 4, 1, '#b0e0ff');
+    px(ctx, 5, 1, '#b0e0ff');
+    rect(ctx, 3, 2, 4, 2, '#87ceeb');
+    rect(ctx, 2, 4, 6, 2, '#87ceeb');
+    rect(ctx, 3, 6, 4, 2, '#87ceeb');
+    px(ctx, 4, 8, '#5b9ab5');
+    px(ctx, 5, 8, '#5b9ab5');
+    // Highlight
+    px(ctx, 3, 3, '#d0f0ff');
+    px(ctx, 4, 4, '#d0f0ff');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_crystal_lens');
+  }
+
+  // iron_pickaxe — iron head + wood handle
+  {
+    const ctx = makeCanvas(scene, 'item_iron_pickaxe', 10, 10);
+    rect(ctx, 4, 4, 2, 5, P.brown);
+    rect(ctx, 1, 2, 8, 2, P.grayLight);
+    rect(ctx, 1, 2, 8, 1, P.white);
+    px(ctx, 0, 3, P.grayLight);
+    px(ctx, 9, 3, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_pickaxe');
+  }
+
+  // iron_axe — iron head + wood handle
+  {
+    const ctx = makeCanvas(scene, 'item_iron_axe', 10, 10);
+    rect(ctx, 4, 5, 2, 5, P.brown);
+    rect(ctx, 2, 1, 4, 5, P.grayLight);
+    rect(ctx, 2, 1, 4, 1, P.white);
+    rect(ctx, 2, 5, 4, 1, P.grayDark);
+    rect(ctx, 2, 1, 1, 5, P.white);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_axe');
+  }
+
+  // reinforced_armor — iron+copper chestplate
+  {
+    const ctx = makeCanvas(scene, 'item_reinforced_armor', 10, 10);
+    rect(ctx, 1, 2, 3, 2, P.grayLight);
+    rect(ctx, 6, 2, 3, 2, P.grayLight);
+    rect(ctx, 1, 4, 8, 5, P.grayLight);
+    rect(ctx, 2, 2, 6, 7, P.grayLight);
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    rect(ctx, 2, 4, 1, 5, P.white);
+    rect(ctx, 2, 4, 6, 1, P.white);
+    // Copper trim
+    rect(ctx, 1, 8, 8, 1, '#b87333');
+    px(ctx, 4, 6, '#b87333');
+    px(ctx, 5, 6, '#b87333');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_reinforced_armor');
+  }
+
+  // lantern — yellow glow on iron frame
+  {
+    const ctx = makeCanvas(scene, 'item_lantern', 10, 10);
+    // Handle
+    rect(ctx, 4, 0, 2, 2, P.grayDark);
+    px(ctx, 3, 1, P.grayDark);
+    px(ctx, 6, 1, P.grayDark);
+    // Frame
+    rect(ctx, 2, 2, 6, 7, P.grayDark);
+    // Glass/glow
+    rect(ctx, 3, 3, 4, 5, P.yellow);
+    rect(ctx, 3, 3, 4, 1, '#ffe080');
+    px(ctx, 4, 4, '#ffe080');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_lantern');
+  }
+
+  // ── Tier 3 Crafted ────────────────────────────────────
+
+  // poison_vial — green bottle
+  {
+    const ctx = makeCanvas(scene, 'item_poison_vial', 10, 10);
+    rect(ctx, 4, 1, 2, 1, '#c8a060');
+    rect(ctx, 4, 2, 2, 2, P.grayLight);
+    rect(ctx, 2, 4, 6, 5, P.slimeGreen);
+    rect(ctx, 2, 4, 6, 1, P.slimeLight);
+    rect(ctx, 2, 8, 6, 1, P.slimeDark);
+    rect(ctx, 3, 5, 2, 3, P.slimeLight);
+    px(ctx, 3, 5, '#bbff88');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_poison_vial');
+  }
+
+  // reed_bow — curved bow shape
+  {
+    const ctx = makeCanvas(scene, 'item_reed_bow', 10, 10);
+    // Bow curve (left arc)
+    px(ctx, 3, 0, P.swampGreen);
+    px(ctx, 2, 1, P.swampGreen);
+    px(ctx, 1, 2, P.swampGreen);
+    px(ctx, 1, 3, P.swampGreen);
+    px(ctx, 1, 4, P.swampGreen);
+    px(ctx, 1, 5, P.swampGreen);
+    px(ctx, 1, 6, P.swampGreen);
+    px(ctx, 1, 7, P.swampGreen);
+    px(ctx, 2, 8, P.swampGreen);
+    px(ctx, 3, 9, P.swampGreen);
+    // String
+    px(ctx, 3, 1, P.offWhite);
+    px(ctx, 3, 2, P.offWhite);
+    px(ctx, 3, 3, P.offWhite);
+    px(ctx, 3, 4, P.offWhite);
+    px(ctx, 3, 5, P.offWhite);
+    px(ctx, 3, 6, P.offWhite);
+    px(ctx, 3, 7, P.offWhite);
+    px(ctx, 3, 8, P.offWhite);
+    // Arrow
+    rect(ctx, 4, 4, 5, 1, P.offWhite);
+    px(ctx, 8, 3, P.grayLight);
+    px(ctx, 8, 5, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_reed_bow');
+  }
+
+  // antidote — green potion bottle
+  {
+    const ctx = makeCanvas(scene, 'item_antidote', 10, 10);
+    rect(ctx, 4, 1, 2, 1, '#c8a060');
+    rect(ctx, 4, 2, 2, 2, P.grayLight);
+    rect(ctx, 2, 4, 6, 5, P.green);
+    rect(ctx, 2, 4, 6, 1, P.greenLight);
+    rect(ctx, 2, 8, 6, 1, P.greenDark);
+    rect(ctx, 3, 5, 2, 3, P.greenLight);
+    px(ctx, 3, 5, '#88ee88');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_antidote');
+  }
+
+  // swamp_boots — green boots
+  {
+    const ctx = makeCanvas(scene, 'item_swamp_boots', 10, 10);
+    // Left boot
+    rect(ctx, 0, 3, 3, 5, P.swampGreen);
+    rect(ctx, 0, 7, 4, 2, P.swampGreen);
+    rect(ctx, 0, 3, 3, 1, P.greenLight);
+    // Right boot
+    rect(ctx, 5, 3, 3, 5, P.swampGreen);
+    rect(ctx, 5, 7, 4, 2, P.swampGreen);
+    rect(ctx, 5, 3, 3, 1, P.greenLight);
+    // Soles
+    rect(ctx, 0, 8, 4, 1, P.swampDark);
+    rect(ctx, 5, 8, 4, 1, P.swampDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_swamp_boots');
+  }
+
+  // enchanted_sword — blue-glowing blade
+  {
+    const ctx = makeCanvas(scene, 'item_enchanted_sword', 10, 10);
+    rect(ctx, 4, 1, 2, 6, '#87ceeb');
+    px(ctx, 4, 0, '#5b9ab5');
+    px(ctx, 5, 0, '#5b9ab5');
+    rect(ctx, 4, 1, 1, 6, '#b0e0ff');
+    rect(ctx, 5, 3, 1, 4, '#5b9ab5');
+    rect(ctx, 2, 7, 6, 1, P.grayLight);
+    rect(ctx, 4, 8, 2, 2, P.purple);
+    // Glow pixels
+    px(ctx, 3, 3, '#d0f0ff');
+    px(ctx, 6, 2, '#d0f0ff');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_enchanted_sword');
+  }
+
+  // ── Tier 4 Crafted ────────────────────────────────────
+
+  // obsidian_blade — dark purple/black blade
+  {
+    const ctx = makeCanvas(scene, 'item_obsidian_blade', 10, 10);
+    rect(ctx, 4, 1, 2, 6, '#1a1a2e');
+    px(ctx, 4, 0, '#0d0d1a');
+    px(ctx, 5, 0, '#0d0d1a');
+    rect(ctx, 4, 1, 1, 6, '#2d2d4e');
+    rect(ctx, 5, 3, 1, 4, '#0d0d1a');
+    rect(ctx, 2, 7, 6, 1, '#3a2a5e');
+    rect(ctx, 4, 8, 2, 2, P.lavaDark);
+    // Edge gleam
+    px(ctx, 3, 2, '#4a4a6e');
+    px(ctx, 6, 4, '#4a4a6e');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_obsidian_blade');
+  }
+
+  // obsidian_armor — dark chestplate
+  {
+    const ctx = makeCanvas(scene, 'item_obsidian_armor', 10, 10);
+    rect(ctx, 1, 2, 3, 2, '#1a1a2e');
+    rect(ctx, 6, 2, 3, 2, '#1a1a2e');
+    rect(ctx, 1, 4, 8, 5, '#1a1a2e');
+    rect(ctx, 2, 2, 6, 7, '#1a1a2e');
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    rect(ctx, 2, 4, 1, 5, '#2d2d4e');
+    rect(ctx, 2, 4, 6, 1, '#2d2d4e');
+    px(ctx, 4, 5, '#3a2a5e');
+    px(ctx, 5, 6, '#3a2a5e');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_obsidian_armor');
+  }
+
+  // fire_potion — orange/red bottle
+  {
+    const ctx = makeCanvas(scene, 'item_fire_potion', 10, 10);
+    rect(ctx, 4, 1, 2, 1, '#c8a060');
+    rect(ctx, 4, 2, 2, 2, P.grayLight);
+    rect(ctx, 2, 4, 6, 5, P.lava);
+    rect(ctx, 2, 4, 6, 1, P.lavaLight);
+    rect(ctx, 2, 8, 6, 1, P.lavaDark);
+    rect(ctx, 3, 5, 2, 3, P.lavaLight);
+    px(ctx, 3, 5, P.magma);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_fire_potion');
+  }
+
+  // magma_pickaxe — obsidian/fire pick
+  {
+    const ctx = makeCanvas(scene, 'item_magma_pickaxe', 10, 10);
+    rect(ctx, 4, 4, 2, 5, P.brownDark);
+    rect(ctx, 1, 2, 8, 2, '#1a1a2e');
+    rect(ctx, 1, 2, 8, 1, '#2d2d4e');
+    px(ctx, 0, 3, '#1a1a2e');
+    px(ctx, 9, 3, '#1a1a2e');
+    // Lava glow
+    px(ctx, 3, 3, P.lava);
+    px(ctx, 6, 3, P.lava);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_magma_pickaxe');
+  }
+
+  // golden_armor — gold chestplate
+  {
+    const ctx = makeCanvas(scene, 'item_golden_armor', 10, 10);
+    rect(ctx, 1, 2, 3, 2, P.yellow);
+    rect(ctx, 6, 2, 3, 2, P.yellow);
+    rect(ctx, 1, 4, 8, 5, P.yellow);
+    rect(ctx, 2, 2, 6, 7, P.yellow);
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    rect(ctx, 2, 4, 1, 5, '#ffe080');
+    rect(ctx, 2, 4, 6, 1, '#ffe080');
+    px(ctx, 4, 5, '#c09010');
+    px(ctx, 5, 5, '#c09010');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_golden_armor');
+  }
+
+  // ── Tier 5 Crafted ────────────────────────────────────
+
+  // void_blade — purple glowing blade
+  {
+    const ctx = makeCanvas(scene, 'item_void_blade', 10, 10);
+    rect(ctx, 4, 1, 2, 6, P.purpleLight);
+    px(ctx, 4, 0, P.purple);
+    px(ctx, 5, 0, P.purple);
+    rect(ctx, 4, 1, 1, 6, '#c070f0');
+    rect(ctx, 5, 3, 1, 4, P.purpleDark);
+    rect(ctx, 2, 7, 6, 1, P.purple);
+    rect(ctx, 4, 8, 2, 2, '#1a1a2e');
+    // Glow
+    px(ctx, 3, 2, '#d090ff');
+    px(ctx, 6, 4, '#d090ff');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_void_blade');
+  }
+
+  // shadow_cloak — dark purple cloak shape
+  {
+    const ctx = makeCanvas(scene, 'item_shadow_cloak', 10, 10);
+    // Shoulders
+    rect(ctx, 1, 1, 8, 2, P.purpleDark);
+    // Body
+    rect(ctx, 0, 3, 10, 6, P.purpleDark);
+    rect(ctx, 1, 3, 8, 1, P.purple);
+    // Hood
+    rect(ctx, 3, 0, 4, 2, P.purpleDark);
+    rect(ctx, 4, 0, 2, 1, P.purple);
+    // Inner shadow
+    rect(ctx, 3, 3, 4, 5, '#1a0033');
+    // Clasp
+    px(ctx, 4, 2, P.purpleLight);
+    px(ctx, 5, 2, P.purpleLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_shadow_cloak');
+  }
+
+  // purification_potion — bright purple bottle
+  {
+    const ctx = makeCanvas(scene, 'item_purification_potion', 10, 10);
+    rect(ctx, 4, 1, 2, 1, '#c8a060');
+    rect(ctx, 4, 2, 2, 2, P.grayLight);
+    rect(ctx, 2, 4, 6, 5, P.purpleLight);
+    rect(ctx, 2, 4, 6, 1, '#c070f0');
+    rect(ctx, 2, 8, 6, 1, P.purple);
+    rect(ctx, 3, 5, 2, 3, '#c070f0');
+    px(ctx, 3, 5, '#d090ff');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_purification_potion');
+  }
 }

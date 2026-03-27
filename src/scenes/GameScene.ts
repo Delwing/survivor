@@ -163,6 +163,28 @@ export class GameScene extends Phaser.Scene {
         this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 15);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 Food', '#fbbf24');
+      } else if (itemId === 'berry_jam') {
+        this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 40);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+40 Food', '#fbbf24');
+      } else if (itemId === 'herbal_wrap') {
+        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 10);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+10 HP', '#86efac');
+      } else if (itemId === 'antidote') {
+        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 30);
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+30 HP', '#86efac');
+      } else if (itemId === 'poison_vial') {
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, 'Poison Ready', '#7fff00');
+      } else if (itemId === 'fire_potion') {
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, 'Fire Blast!', '#ff4500');
+      } else if (itemId === 'purification_potion') {
+        this.player.stats.health = this.player.stats.maxHealth;
+        this.itemSystem.removeItem(this.player.inventory, itemId, 1);
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, 'Full Heal!', '#c070f0');
       }
       this.inventoryPanel.update(this.player.inventory, this.player.equipment);
     });
