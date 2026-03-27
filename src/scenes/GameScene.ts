@@ -263,14 +263,6 @@ export class GameScene extends Phaser.Scene {
       if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
 
-      // Pending station placement
-      if (this.pendingBuild) {
-        this.placeStation(this.pendingBuild, pointer.worldX, pointer.worldY);
-        this.pendingBuild = null;
-        this.input.setDefaultCursor('default');
-        return;
-      }
-
       // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
@@ -1050,8 +1042,10 @@ export class GameScene extends Phaser.Scene {
           for (const ingredient of opt.items) {
             scene.itemSystem.removeItem(scene.player.inventory, ingredient.item, ingredient.count);
           }
-          scene.pendingBuild = opt.type;
-          scene.input.setDefaultCursor('crosshair');
+          // Place immediately next to the player (offset slightly to the right)
+          const placeX = scene.playerSprite.x + 30;
+          const placeY = scene.playerSprite.y + 5;
+          scene.placeStation(opt.type, placeX, placeY);
           scene.closeBuildMenu();
         });
         container.add(hitZone);
