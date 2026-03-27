@@ -11,6 +11,7 @@ export function generateAllTextures(scene: Phaser.Scene): void {
   generateMobTextures(scene);
   generateResourceTextures(scene);
   generateStationTextures(scene);
+  generateItemIcons(scene);
 }
 
 export function createPlayerAnimations(scene: Phaser.Scene): void {
@@ -909,5 +910,550 @@ function drawSpriteOutline(ctx: CanvasRenderingContext2D, w: number, h: number, 
   ctx.fillStyle = color;
   for (const [x, y] of outlinePixels) {
     ctx.fillRect(x, y, 1, 1);
+  }
+}
+
+// ─── ITEM ICONS ─────────────────────────────────────────
+
+/**
+ * Generates 10x10 pixel-art icons for every item. Texture key: `item_<id>`.
+ */
+export function generateItemIcons(scene: Phaser.Scene): void {
+  // ── Resources: natural ────────────────────────────────
+
+  // wood — horizontal brown log with end-rings
+  {
+    const ctx = makeCanvas(scene, 'item_wood', 10, 10);
+    rect(ctx, 1, 3, 8, 4, P.brown);
+    rect(ctx, 1, 3, 8, 1, P.brownLight); // highlight top
+    rect(ctx, 1, 6, 8, 1, P.brownDark);  // shadow bottom
+    // end rings
+    rect(ctx, 1, 3, 2, 4, P.brownLight);
+    px(ctx, 2, 4, P.brownDark);
+    px(ctx, 2, 5, P.brownDark);
+    rect(ctx, 7, 3, 2, 4, P.brownLight);
+    px(ctx, 7, 4, P.brownDark);
+    px(ctx, 7, 5, P.brownDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_wood');
+  }
+
+  // stone — irregular gray rock
+  {
+    const ctx = makeCanvas(scene, 'item_stone', 10, 10);
+    rect(ctx, 2, 4, 6, 4, P.gray);
+    rect(ctx, 3, 2, 5, 2, P.gray);
+    rect(ctx, 4, 1, 3, 1, P.grayLight);
+    rect(ctx, 2, 4, 6, 1, P.grayLight);  // top highlight
+    rect(ctx, 2, 7, 6, 1, P.grayDark);   // bottom shadow
+    px(ctx, 3, 5, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_stone');
+  }
+
+  // berries — three red circles
+  {
+    const ctx = makeCanvas(scene, 'item_berries', 10, 10);
+    // Berry 1 (left)
+    rect(ctx, 1, 5, 3, 3, P.red);
+    px(ctx, 2, 4, P.red);
+    px(ctx, 2, 5, P.redLight);
+    // Berry 2 (right)
+    rect(ctx, 5, 5, 3, 3, P.red);
+    px(ctx, 6, 4, P.red);
+    px(ctx, 6, 5, P.redLight);
+    // Berry 3 (top center)
+    rect(ctx, 3, 2, 3, 3, P.red);
+    px(ctx, 4, 2, P.redLight);
+    // Stems
+    px(ctx, 2, 3, P.greenDark);
+    px(ctx, 6, 3, P.greenDark);
+    px(ctx, 4, 1, P.greenDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_berries');
+  }
+
+  // herbs — green leaf shape
+  {
+    const ctx = makeCanvas(scene, 'item_herbs', 10, 10);
+    // Stem
+    rect(ctx, 4, 6, 1, 3, P.greenDark);
+    // Leaf
+    rect(ctx, 3, 3, 4, 4, P.green);
+    rect(ctx, 2, 4, 6, 2, P.green);
+    rect(ctx, 3, 2, 4, 1, P.greenLight);
+    px(ctx, 4, 3, P.greenLight);
+    px(ctx, 5, 5, P.greenDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_herbs');
+  }
+
+  // meat — pink/red raw chunk
+  {
+    const ctx = makeCanvas(scene, 'item_meat', 10, 10);
+    rect(ctx, 2, 3, 6, 5, '#cd5c5c');
+    rect(ctx, 3, 2, 4, 1, '#cd5c5c');
+    rect(ctx, 2, 3, 6, 1, '#e07070'); // highlight
+    rect(ctx, 3, 4, 2, 2, '#f08080'); // fat streak
+    rect(ctx, 2, 7, 6, 1, '#a03030'); // shadow
+    // bone nub
+    rect(ctx, 7, 4, 2, 3, P.offWhite);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_meat');
+  }
+
+  // hide — flat tan square with darker edges
+  {
+    const ctx = makeCanvas(scene, 'item_hide', 10, 10);
+    rect(ctx, 1, 2, 8, 6, '#deb887');
+    rect(ctx, 2, 3, 6, 4, '#c9a87a');
+    rect(ctx, 1, 2, 8, 1, '#e8c99a'); // highlight
+    rect(ctx, 1, 7, 8, 1, '#a07855'); // shadow
+    rect(ctx, 1, 2, 1, 6, '#a07855'); // left edge
+    rect(ctx, 8, 2, 1, 6, '#a07855'); // right edge
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_hide');
+  }
+
+  // bone — two bulbs connected by thin bar
+  {
+    const ctx = makeCanvas(scene, 'item_bone', 10, 10);
+    // Top bulb
+    rect(ctx, 3, 1, 3, 2, P.offWhite);
+    rect(ctx, 2, 2, 5, 1, P.offWhite);
+    // Shaft
+    rect(ctx, 4, 3, 1, 4, P.offWhite);
+    px(ctx, 5, 3, P.grayLight);
+    // Bottom bulb
+    rect(ctx, 3, 7, 3, 2, P.offWhite);
+    rect(ctx, 2, 7, 5, 1, P.offWhite);
+    // Highlights
+    px(ctx, 4, 1, P.white);
+    px(ctx, 4, 7, P.white);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_bone');
+  }
+
+  // slime_gel — green blob/droplet
+  {
+    const ctx = makeCanvas(scene, 'item_slime_gel', 10, 10);
+    rect(ctx, 3, 5, 4, 4, P.slimeGreen);
+    rect(ctx, 2, 6, 6, 2, P.slimeGreen);
+    // Droplet tip
+    rect(ctx, 4, 2, 2, 3, P.slimeGreen);
+    px(ctx, 4, 1, P.slimeGreen);
+    // Highlights
+    px(ctx, 3, 6, P.slimeLight);
+    px(ctx, 4, 5, P.slimeLight);
+    rect(ctx, 2, 7, 6, 1, P.slimeDark); // shadow
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_slime_gel');
+  }
+
+  // iron_ore — dark rock with silver sparkles
+  {
+    const ctx = makeCanvas(scene, 'item_iron_ore', 10, 10);
+    rect(ctx, 2, 3, 6, 5, P.grayDark);
+    rect(ctx, 3, 2, 4, 1, P.grayDark);
+    rect(ctx, 2, 3, 6, 1, P.gray);
+    rect(ctx, 2, 7, 6, 1, P.grayDeep);
+    // Silver sparkles
+    px(ctx, 3, 4, P.grayLight);
+    px(ctx, 5, 5, P.grayLight);
+    px(ctx, 7, 4, P.white);
+    px(ctx, 4, 6, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_ore');
+  }
+
+  // copper_ore — dark rock with copper/orange sparkles
+  {
+    const ctx = makeCanvas(scene, 'item_copper_ore', 10, 10);
+    rect(ctx, 2, 3, 6, 5, P.grayDark);
+    rect(ctx, 3, 2, 4, 1, P.grayDark);
+    rect(ctx, 2, 3, 6, 1, P.gray);
+    rect(ctx, 2, 7, 6, 1, P.grayDeep);
+    // Copper sparkles
+    px(ctx, 3, 4, '#b87333');
+    px(ctx, 5, 5, '#d4863a');
+    px(ctx, 7, 4, '#e0963c');
+    px(ctx, 4, 6, '#b87333');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_copper_ore');
+  }
+
+  // coal — very dark chunk
+  {
+    const ctx = makeCanvas(scene, 'item_coal', 10, 10);
+    rect(ctx, 2, 3, 6, 5, '#2f2f2f');
+    rect(ctx, 3, 2, 4, 1, '#2f2f2f');
+    rect(ctx, 2, 3, 6, 1, '#4a4a4a');
+    rect(ctx, 2, 7, 6, 1, '#1a1a1a');
+    px(ctx, 3, 4, '#3d3d3d');
+    px(ctx, 6, 5, '#1a1a1a');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_coal');
+  }
+
+  // crystal — blue pointed shard
+  {
+    const ctx = makeCanvas(scene, 'item_crystal', 10, 10);
+    // Pointed top
+    px(ctx, 4, 1, '#87ceeb');
+    px(ctx, 5, 1, '#87ceeb');
+    rect(ctx, 3, 2, 4, 2, '#87ceeb');
+    rect(ctx, 3, 4, 4, 4, '#87ceeb');
+    // Facets
+    rect(ctx, 3, 2, 1, 6, '#b0e0ff');
+    rect(ctx, 3, 4, 4, 1, '#b0e0ff');
+    rect(ctx, 6, 5, 1, 3, '#5b9ab5');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_crystal');
+  }
+
+  // iron_ingot — silver/blue rectangular ingot
+  {
+    const ctx = makeCanvas(scene, 'item_iron_ingot', 10, 10);
+    rect(ctx, 1, 3, 8, 5, '#b0c4de');
+    rect(ctx, 2, 2, 6, 1, '#b0c4de');
+    rect(ctx, 1, 3, 8, 1, '#d0d8e8'); // top highlight
+    rect(ctx, 1, 7, 8, 1, '#7a8fa0'); // bottom shadow
+    rect(ctx, 1, 3, 1, 5, '#d0d8e8'); // left highlight
+    rect(ctx, 8, 3, 1, 5, '#7a8fa0'); // right shadow
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_ingot');
+  }
+
+  // wood_plank — flat tan plank
+  {
+    const ctx = makeCanvas(scene, 'item_wood_plank', 10, 10);
+    rect(ctx, 1, 3, 8, 4, '#deb887');
+    rect(ctx, 1, 3, 8, 1, '#e8c99a'); // highlight
+    rect(ctx, 1, 6, 8, 1, '#a07855'); // shadow
+    // Wood grain
+    px(ctx, 2, 4, '#c9a87a');
+    px(ctx, 4, 5, '#c9a87a');
+    px(ctx, 6, 4, '#c9a87a');
+    px(ctx, 8, 5, '#c9a87a');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_wood_plank');
+  }
+
+  // rare_mushroom — purple mushroom cap
+  {
+    const ctx = makeCanvas(scene, 'item_rare_mushroom', 10, 10);
+    // Cap
+    rect(ctx, 2, 2, 6, 4, P.purple);
+    rect(ctx, 1, 4, 8, 2, P.purple);
+    rect(ctx, 2, 2, 6, 1, P.purpleLight); // highlight
+    // Spots
+    px(ctx, 3, 3, P.purpleLight);
+    px(ctx, 6, 4, P.purpleLight);
+    // Stem
+    rect(ctx, 4, 6, 2, 3, P.offWhite);
+    px(ctx, 3, 6, '#e0d8c0');
+    px(ctx, 6, 6, '#e0d8c0');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_rare_mushroom');
+  }
+
+  // swamp_reed — green thin stalks
+  {
+    const ctx = makeCanvas(scene, 'item_swamp_reed', 10, 10);
+    // Three stalks
+    rect(ctx, 2, 3, 1, 6, P.swampGreen);
+    rect(ctx, 4, 1, 1, 8, P.swampGreen);
+    rect(ctx, 7, 2, 1, 7, P.swampGreen);
+    // Tips/seed heads
+    rect(ctx, 1, 2, 3, 1, '#4a6a2a');
+    rect(ctx, 3, 0, 3, 1, '#4a6a2a');
+    rect(ctx, 6, 1, 3, 1, '#4a6a2a');
+    // Highlights
+    px(ctx, 4, 3, P.greenLight);
+    px(ctx, 7, 4, P.greenLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_swamp_reed');
+  }
+
+  // obsidian — very dark purple/black angular shard
+  {
+    const ctx = makeCanvas(scene, 'item_obsidian', 10, 10);
+    px(ctx, 4, 1, '#1a1a2e');
+    px(ctx, 5, 1, '#1a1a2e');
+    rect(ctx, 3, 2, 4, 2, '#1a1a2e');
+    rect(ctx, 2, 4, 6, 3, '#1a1a2e');
+    rect(ctx, 3, 7, 4, 2, '#1a1a2e');
+    // Highlight facets
+    rect(ctx, 3, 2, 1, 3, '#2d2d4e');
+    px(ctx, 4, 4, '#3a2a5e');
+    px(ctx, 3, 6, '#2d2d4e');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_obsidian');
+  }
+
+  // fire_crystal — red/orange pointed shard
+  {
+    const ctx = makeCanvas(scene, 'item_fire_crystal', 10, 10);
+    px(ctx, 4, 1, P.lava);
+    px(ctx, 5, 1, P.lava);
+    rect(ctx, 3, 2, 4, 2, P.lava);
+    rect(ctx, 3, 4, 4, 4, P.lava);
+    // Facets
+    rect(ctx, 3, 2, 1, 6, P.lavaLight);
+    px(ctx, 4, 4, P.magma);
+    rect(ctx, 6, 5, 1, 3, P.lavaDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_fire_crystal');
+  }
+
+  // rare_ore — dark rock with gold sparkles
+  {
+    const ctx = makeCanvas(scene, 'item_rare_ore', 10, 10);
+    rect(ctx, 2, 3, 6, 5, P.grayDark);
+    rect(ctx, 3, 2, 4, 1, P.grayDark);
+    rect(ctx, 2, 3, 6, 1, P.gray);
+    rect(ctx, 2, 7, 6, 1, P.grayDeep);
+    // Gold sparkles
+    px(ctx, 3, 4, P.yellow);
+    px(ctx, 5, 5, P.yellow);
+    px(ctx, 7, 4, '#ffe060');
+    px(ctx, 4, 6, P.yellow);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_rare_ore');
+  }
+
+  // shadow_essence — dark purple wispy
+  {
+    const ctx = makeCanvas(scene, 'item_shadow_essence', 10, 10);
+    // Wispy tendrils
+    px(ctx, 4, 1, P.purpleDark);
+    px(ctx, 5, 1, P.purpleDark);
+    rect(ctx, 3, 2, 4, 2, P.purpleDark);
+    rect(ctx, 2, 4, 6, 3, P.purpleDark);
+    rect(ctx, 3, 7, 4, 1, P.purpleDark);
+    px(ctx, 2, 5, P.purple);
+    px(ctx, 7, 4, P.purple);
+    px(ctx, 4, 3, P.purpleLight);
+    px(ctx, 3, 6, P.purpleDark);
+    px(ctx, 6, 7, P.purpleDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_shadow_essence');
+  }
+
+  // void_crystal — bright purple shard
+  {
+    const ctx = makeCanvas(scene, 'item_void_crystal', 10, 10);
+    px(ctx, 4, 1, P.purpleLight);
+    px(ctx, 5, 1, P.purpleLight);
+    rect(ctx, 3, 2, 4, 2, P.purpleLight);
+    rect(ctx, 3, 4, 4, 4, P.purpleLight);
+    // Facets
+    rect(ctx, 3, 2, 1, 6, '#c070f0');
+    px(ctx, 4, 4, '#d090ff');
+    rect(ctx, 6, 5, 1, 3, P.purple);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_void_crystal');
+  }
+
+  // corrupted_wood — dark purple log
+  {
+    const ctx = makeCanvas(scene, 'item_corrupted_wood', 10, 10);
+    rect(ctx, 1, 3, 8, 4, P.purpleDark);
+    rect(ctx, 1, 3, 8, 1, P.purple);  // highlight top
+    rect(ctx, 1, 6, 8, 1, '#1a0033'); // shadow bottom
+    // End rings
+    rect(ctx, 1, 3, 2, 4, P.purple);
+    px(ctx, 2, 4, P.purpleDark);
+    px(ctx, 2, 5, P.purpleDark);
+    rect(ctx, 7, 3, 2, 4, P.purple);
+    px(ctx, 7, 4, P.purpleDark);
+    px(ctx, 7, 5, P.purpleDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_corrupted_wood');
+  }
+
+  // ── Tools & Weapons ────────────────────────────────────
+
+  // wooden_axe — brown handle + gray head
+  {
+    const ctx = makeCanvas(scene, 'item_wooden_axe', 10, 10);
+    // Handle
+    rect(ctx, 4, 5, 2, 5, P.brown);
+    // Axe head
+    rect(ctx, 2, 1, 4, 5, P.gray);
+    rect(ctx, 2, 1, 4, 1, P.grayLight);
+    rect(ctx, 2, 5, 4, 1, P.grayDark);
+    rect(ctx, 2, 1, 1, 5, P.grayLight);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_wooden_axe');
+  }
+
+  // wooden_pickaxe — brown handle + pointed head
+  {
+    const ctx = makeCanvas(scene, 'item_wooden_pickaxe', 10, 10);
+    // Handle (angled)
+    rect(ctx, 4, 4, 2, 5, P.brown);
+    // Pick head (horizontal)
+    rect(ctx, 1, 2, 8, 2, P.gray);
+    rect(ctx, 1, 2, 8, 1, P.grayLight);
+    // Points
+    px(ctx, 0, 3, P.gray);
+    px(ctx, 9, 3, P.gray);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_wooden_pickaxe');
+  }
+
+  // wooden_sword — brown handle + blade pointing up
+  {
+    const ctx = makeCanvas(scene, 'item_wooden_sword', 10, 10);
+    // Blade
+    rect(ctx, 4, 1, 2, 6, P.brownLight);
+    px(ctx, 4, 0, P.brown);
+    px(ctx, 5, 0, P.brown);
+    rect(ctx, 4, 1, 1, 6, P.offWhite);
+    // Guard
+    rect(ctx, 2, 7, 6, 1, P.brown);
+    // Handle
+    rect(ctx, 4, 8, 2, 2, P.brownDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_wooden_sword');
+  }
+
+  // iron_sword — silver blade pointing up
+  {
+    const ctx = makeCanvas(scene, 'item_iron_sword', 10, 10);
+    // Blade
+    rect(ctx, 4, 1, 2, 6, P.grayLight);
+    px(ctx, 4, 0, P.gray);
+    px(ctx, 5, 0, P.gray);
+    rect(ctx, 4, 1, 1, 6, P.white);
+    rect(ctx, 5, 3, 1, 4, P.grayDark);
+    // Guard
+    rect(ctx, 2, 7, 6, 1, '#8fa8c0');
+    // Handle
+    rect(ctx, 4, 8, 2, 2, '#5a6a7a');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_sword');
+  }
+
+  // iron_armor — silver chestplate shape
+  {
+    const ctx = makeCanvas(scene, 'item_iron_armor', 10, 10);
+    // Shoulders
+    rect(ctx, 1, 2, 3, 2, P.gray);
+    rect(ctx, 6, 2, 3, 2, P.gray);
+    // Chest
+    rect(ctx, 1, 4, 8, 5, P.gray);
+    rect(ctx, 2, 2, 6, 7, P.gray);
+    // Neck opening
+    rect(ctx, 3, 2, 4, 2, '#0f172a');
+    // Highlights
+    rect(ctx, 2, 4, 1, 5, P.grayLight);
+    rect(ctx, 2, 4, 6, 1, P.grayLight);
+    // Center line
+    px(ctx, 4, 5, P.grayDark);
+    px(ctx, 5, 5, P.grayDark);
+    px(ctx, 4, 6, P.grayDark);
+    px(ctx, 5, 6, P.grayDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_iron_armor');
+  }
+
+  // ── Consumables ────────────────────────────────────────
+
+  // bandage — white rolled bandage
+  {
+    const ctx = makeCanvas(scene, 'item_bandage', 10, 10);
+    // Roll shape
+    rect(ctx, 2, 3, 6, 5, P.offWhite);
+    rect(ctx, 2, 3, 6, 1, P.white);
+    rect(ctx, 2, 7, 6, 1, '#c8c0b8');
+    // Cross symbol
+    rect(ctx, 4, 4, 2, 3, P.red);
+    rect(ctx, 3, 5, 4, 1, P.red);
+    // End tuck lines
+    px(ctx, 2, 5, '#c8c0b8');
+    px(ctx, 7, 4, '#c8c0b8');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_bandage');
+  }
+
+  // cooked_meat — brown cooked drumstick
+  {
+    const ctx = makeCanvas(scene, 'item_cooked_meat', 10, 10);
+    // Meat chunk
+    rect(ctx, 2, 2, 5, 5, '#cd853f');
+    rect(ctx, 2, 2, 5, 1, '#d99a58');
+    rect(ctx, 2, 6, 5, 1, '#8b5e27');
+    rect(ctx, 3, 3, 2, 2, '#b8762e');
+    // Bone handle
+    rect(ctx, 6, 5, 2, 4, P.offWhite);
+    px(ctx, 5, 7, P.offWhite);
+    px(ctx, 5, 8, P.offWhite);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_cooked_meat');
+  }
+
+  // health_potion — red bottle
+  {
+    const ctx = makeCanvas(scene, 'item_health_potion', 10, 10);
+    // Cork
+    rect(ctx, 4, 1, 2, 1, '#c8a060');
+    // Neck
+    rect(ctx, 4, 2, 2, 2, P.grayLight);
+    // Bottle body
+    rect(ctx, 2, 4, 6, 5, P.red);
+    rect(ctx, 2, 4, 6, 1, P.redLight);
+    rect(ctx, 2, 8, 6, 1, P.lavaDark);
+    // Liquid highlight
+    rect(ctx, 3, 5, 2, 3, P.redLight);
+    px(ctx, 3, 5, '#ff9090');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_health_potion');
+  }
+
+  // ── Misc ───────────────────────────────────────────────
+
+  // gold_coin — yellow circle with G
+  {
+    const ctx = makeCanvas(scene, 'item_gold_coin', 10, 10);
+    // Coin circle
+    rect(ctx, 3, 1, 4, 8, P.yellow);
+    rect(ctx, 1, 3, 8, 4, P.yellow);
+    rect(ctx, 2, 2, 6, 6, P.yellow);
+    // Highlight
+    rect(ctx, 2, 2, 1, 3, '#ffe080');
+    rect(ctx, 2, 2, 3, 1, '#ffe080');
+    // Shadow
+    rect(ctx, 7, 5, 1, 3, '#c09010');
+    rect(ctx, 5, 7, 2, 1, '#c09010');
+    // "G" letter center
+    px(ctx, 4, 4, P.brownDark);
+    px(ctx, 5, 4, P.brownDark);
+    px(ctx, 4, 5, P.brownDark);
+    px(ctx, 5, 5, P.brownDark);
+    px(ctx, 4, 6, P.brownDark);
+    px(ctx, 5, 6, P.brownDark);
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_gold_coin');
+  }
+
+  // recipe_scroll — tan rolled scroll
+  {
+    const ctx = makeCanvas(scene, 'item_recipe_scroll', 10, 10);
+    // Scroll body
+    rect(ctx, 2, 2, 6, 6, '#f5e6c8');
+    rect(ctx, 2, 2, 6, 1, '#fff0d8');
+    rect(ctx, 2, 7, 6, 1, '#c8b090');
+    // End rolls
+    rect(ctx, 1, 1, 8, 2, '#deb887');
+    rect(ctx, 1, 7, 8, 2, '#deb887');
+    rect(ctx, 1, 1, 1, 8, '#c9a87a');
+    rect(ctx, 8, 1, 1, 8, '#c9a87a');
+    // Text lines
+    rect(ctx, 3, 4, 4, 1, '#8b7355');
+    rect(ctx, 3, 5, 3, 1, '#8b7355');
+    drawSpriteOutline(ctx, 10, 10, P.outline);
+    finalize(scene, 'item_recipe_scroll');
   }
 }

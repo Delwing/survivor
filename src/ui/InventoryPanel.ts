@@ -16,6 +16,7 @@ const PANEL_H = 480;
 export class InventoryPanel {
   private container: Phaser.GameObjects.Container;
   private cellGraphics: Phaser.GameObjects.Graphics[] = [];
+  private cellItemImages: (Phaser.GameObjects.Image | null)[] = [];
   private cellNameTexts: Phaser.GameObjects.Text[] = [];
   private cellCountTexts: Phaser.GameObjects.Text[] = [];
   private equippedWeaponText!: Phaser.GameObjects.Text;
@@ -125,6 +126,7 @@ export class InventoryPanel {
         cellBg.strokeRect(cx, cy, CELL_SIZE, CELL_SIZE);
         this.container.add(cellBg);
         this.cellGraphics.push(cellBg);
+        this.cellItemImages.push(null);
 
         const nameText = scene.add.text(cx + CELL_SIZE / 2, cy + CELL_SIZE - 2, '', {
           fontSize: '8px', color: '#94a3b8',
@@ -201,6 +203,12 @@ export class InventoryPanel {
       const bg = this.cellGraphics[idx];
       bg.clear();
 
+      // Remove stale item image
+      if (this.cellItemImages[idx]) {
+        this.cellItemImages[idx]!.destroy();
+        this.cellItemImages[idx] = null;
+      }
+
       if (slot) {
         const def = getItemDef(slot.itemId);
         const color = def?.color ?? 0x888888;
@@ -211,10 +219,25 @@ export class InventoryPanel {
         bg.lineStyle(1, isEquipped ? 0x60a5fa : 0x334155);
         bg.strokeRect(cx, cy, CELL_SIZE, CELL_SIZE);
 
-        // Color icon
+        const iconKey = `item_${slot.itemId}`;
         const iconSize = CELL_SIZE - 16;
-        bg.fillStyle(color, 1);
-        bg.fillRect(cx + 8, cy + 6, iconSize, iconSize);
+        const iconX = cx + 8;
+        const iconY = cy + 6;
+
+        if (this.scene.textures.exists(iconKey)) {
+          const img = this.scene.add.image(
+            iconX + iconSize / 2,
+            iconY + iconSize / 2,
+            iconKey,
+          );
+          img.setDisplaySize(iconSize, iconSize);
+          this.container.add(img);
+          this.cellItemImages[idx] = img;
+        } else {
+          // Fallback: colored square
+          bg.fillStyle(color, 1);
+          bg.fillRect(iconX, iconY, iconSize, iconSize);
+        }
 
         this.cellNameTexts[idx].setText(def?.name?.slice(0, 7) ?? slot.itemId.slice(0, 7));
         this.cellCountTexts[idx].setText(slot.count > 1 ? String(slot.count) : '');

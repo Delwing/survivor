@@ -10,6 +10,7 @@ const BOTTOM_PADDING = 80; // above ability bar
 export class QuickInventory {
   private container: Phaser.GameObjects.Container;
   private slotGraphics: Phaser.GameObjects.Graphics[] = [];
+  private itemImages: (Phaser.GameObjects.Image | null)[] = [];
   private countTexts: Phaser.GameObjects.Text[] = [];
   private nameTexts: Phaser.GameObjects.Text[] = [];
 
@@ -34,6 +35,8 @@ export class QuickInventory {
       bg.strokeRect(x, bottom, SLOT_SIZE, SLOT_SIZE);
       this.container.add(bg);
       this.slotGraphics.push(bg);
+
+      this.itemImages.push(null);
 
       const countText = scene.add.text(
         x + SLOT_SIZE - 2, bottom + SLOT_SIZE - 2,
@@ -85,16 +88,35 @@ export class QuickInventory {
       bg.lineStyle(1, 0x475569, 0.8);
       bg.strokeRect(x, bottom, SLOT_SIZE, SLOT_SIZE);
 
+      // Remove old item image if present
+      if (this.itemImages[i]) {
+        this.itemImages[i]!.destroy();
+        this.itemImages[i] = null;
+      }
+
       if (slot) {
         const def = getItemDef(slot.itemId);
         const color = def?.color ?? 0x888888;
-
-        // Draw colored item square
+        const iconKey = `item_${slot.itemId}`;
         const iconSize = SLOT_SIZE - 8;
         const iconX = x + 4;
         const iconY = bottom + 4;
-        bg.fillStyle(color, 1);
-        bg.fillRect(iconX, iconY, iconSize, iconSize);
+
+        if (this.scene.textures.exists(iconKey)) {
+          // Use pixel-art icon, scaled to fit the icon area
+          const img = this.scene.add.image(
+            iconX + iconSize / 2,
+            iconY + iconSize / 2,
+            iconKey,
+          );
+          img.setDisplaySize(iconSize, iconSize);
+          this.container.add(img);
+          this.itemImages[i] = img;
+        } else {
+          // Fallback: colored square
+          bg.fillStyle(color, 1);
+          bg.fillRect(iconX, iconY, iconSize, iconSize);
+        }
 
         this.countTexts[i].setText(slot.count > 1 ? String(slot.count) : '');
         this.nameTexts[i].setText(def?.name?.slice(0, 6) ?? slot.itemId.slice(0, 6));
