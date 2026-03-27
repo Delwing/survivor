@@ -99,12 +99,19 @@ export class GameScene extends Phaser.Scene {
     // Render initial chunks
     this.updateChunks();
 
-    // Input — click to move
+    // Input — click to move (or interact)
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Ignore clicks on the UI area (bottom 80px of screen)
+      const screenY = pointer.y;
+      if (screenY > this.cameras.main.height - 80) return;
+
+      // Ignore if a UI panel is open
+      if (this.uiManager.isOpen()) return;
+
       // Check resource nodes first
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
-        if (d < 20 && res.state.remaining > 0) {
+        if (d < 30 && res.state.remaining > 0) {
           res.state.remaining--;
           this.itemSystem.addItem(this.player.inventory, res.state.itemId, 1);
           if (res.state.remaining <= 0) res.sprite.setAlpha(0.2);
