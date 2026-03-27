@@ -20,6 +20,8 @@ import { MOB_DEFINITIONS } from '@/config/mobs';
 import { createMobState, createMobSprite } from '@/entities/Mob';
 import { ResourceNodeState } from '@/entities/ResourceNode';
 
+const GATHER_RANGE = 40; // must be this close to gather
+
 // A rendered chunk: one baked image for tiles + individual sprites for resource nodes
 interface RenderedChunk {
   image: Phaser.GameObjects.Image;
@@ -47,6 +49,9 @@ export class GameScene extends Phaser.Scene {
   private resourceNodes: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }[] = [];
   private spawnedChunks = new Set<string>();
   private lastPlayerAttack = 0;
+  private gatherTarget: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite } | null = null;
+  private moveMarker!: Phaser.GameObjects.Graphics;
+  private hoveredResource: Phaser.GameObjects.Sprite | null = null;
 
   private renderedChunks = new Map<string, RenderedChunk>();
   private currentChunkX = 0;
@@ -91,34 +96,64 @@ export class GameScene extends Phaser.Scene {
     this.currentChunkX = 0;
     this.currentChunkY = 0;
     this.moveTarget = null;
+    this.gatherTarget = null;
+    this.hoveredResource = null;
     this.mobs = [];
     this.resourceNodes = [];
     this.spawnedChunks = new Set();
     this.lastPlayerAttack = 0;
 
+    // Move marker (small circle where you clicked)
+    this.moveMarker = this.add.graphics();
+    this.moveMarker.setDepth(9000);
+    this.moveMarker.setVisible(false);
+
     // Render initial chunks
     this.updateChunks();
 
-    // Input — click to move (or interact)
+    // Input — click to move or gather
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       // Ignore clicks on the UI area (bottom 80px of screen)
-      const screenY = pointer.y;
-      if (screenY > this.cameras.main.height - 80) return;
-
-      // Ignore if a UI panel is open
+      if (pointer.y > this.cameras.main.height - 80) return;
       if (this.uiManager.isOpen()) return;
 
-      // Check resource nodes first
+      // Check if clicking a resource — walk to it first, then gather
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
         if (d < 30 && res.state.remaining > 0) {
-          res.state.remaining--;
-          this.itemSystem.addItem(this.player.inventory, res.state.itemId, 1);
-          if (res.state.remaining <= 0) res.sprite.setAlpha(0.2);
+          this.gatherTarget = res;
+          this.moveTarget = { x: res.sprite.x, y: res.sprite.y };
+          this.showMoveMarker(res.sprite.x, res.sprite.y, true);
           return;
         }
       }
+
+      // Normal movement
+      this.gatherTarget = null;
       this.moveTarget = { x: pointer.worldX, y: pointer.worldY };
+      this.showMoveMarker(pointer.worldX, pointer.worldY, false);
+    });
+
+    // Hover detection for resources
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      // Reset previous hover
+      if (this.hoveredResource) {
+        this.hoveredResource.clearTint();
+        this.hoveredResource = null;
+      }
+      this.input.setDefaultCursor('default');
+
+      // Check resource hover
+      for (const res of this.resourceNodes) {
+        if (res.state.remaining <= 0) continue;
+        const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
+        if (d < 30) {
+          res.sprite.setTint(0xffffff);
+          this.hoveredResource = res.sprite;
+          this.input.setDefaultCursor('pointer');
+          break;
+        }
+      }
     });
 
     // ESC — debug die
@@ -148,12 +183,81 @@ export class GameScene extends Phaser.Scene {
     const dx = this.moveTarget.x - this.playerSprite.x;
     const dy = this.moveTarget.y - this.playerSprite.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 3) { this.moveTarget = null; return; }
+
+    // Check if we've arrived at a gather target
+    if (this.gatherTarget && dist < GATHER_RANGE) {
+      this.doGather(this.gatherTarget);
+      this.gatherTarget = null;
+      this.moveTarget = null;
+      this.moveMarker.setVisible(false);
+      return;
+    }
+
+    // Arrived at move target
+    if (dist < 3) {
+      this.moveTarget = null;
+      this.moveMarker.setVisible(false);
+      return;
+    }
+
     const speed = this.player.stats.speed * (delta / 1000);
     this.playerSprite.x += (dx / dist) * speed;
     this.playerSprite.y += (dy / dist) * speed;
     this.player.position.x = this.playerSprite.x;
     this.player.position.y = this.playerSprite.y;
+  }
+
+  private doGather(res: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite }): void {
+    if (res.state.remaining <= 0) return;
+    res.state.remaining--;
+    this.itemSystem.addItem(this.player.inventory, res.state.itemId, 1);
+
+    // Floating text feedback
+    this.showFloatingText(res.sprite.x, res.sprite.y - 16, `+1`);
+
+    // Shake the resource slightly
+    this.tweens.add({
+      targets: res.sprite,
+      x: res.sprite.x + 2,
+      duration: 50,
+      yoyo: true,
+      repeat: 1,
+    });
+
+    if (res.state.remaining <= 0) {
+      res.sprite.setAlpha(0.2);
+    }
+  }
+
+  private showFloatingText(x: number, y: number, text: string): void {
+    const floatText = this.add.text(x, y, text, {
+      fontSize: '10px',
+      color: '#ffffff',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(9999);
+
+    this.tweens.add({
+      targets: floatText,
+      y: y - 20,
+      alpha: 0,
+      duration: 800,
+      onComplete: () => floatText.destroy(),
+    });
+  }
+
+  private showMoveMarker(x: number, y: number, isGather: boolean): void {
+    this.moveMarker.clear();
+    if (isGather) {
+      // Yellow ring for gather
+      this.moveMarker.lineStyle(1, 0xf0c040, 0.8);
+      this.moveMarker.strokeCircle(x, y, 6);
+    } else {
+      // White dot for movement
+      this.moveMarker.fillStyle(0xffffff, 0.5);
+      this.moveMarker.fillCircle(x, y, 3);
+    }
+    this.moveMarker.setVisible(true);
   }
 
   private updateChunkTracking(): void {
