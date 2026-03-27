@@ -5,7 +5,7 @@ const PANEL_Y = 30;
 const PANEL_W = 840;
 const PANEL_H = 480;
 
-const TILE_PX = 4; // pixels per chunk square
+const TILE_PX = 12; // pixels per chunk square
 
 const BIOME_COLORS: Record<string, number> = {
   forest:          0x22aa22,
@@ -167,6 +167,9 @@ export class MapPanel {
 
         this.mapGraphics.fillStyle(color, 1);
         this.mapGraphics.fillRect(px, py, TILE_PX - 1, TILE_PX - 1);
+        // Subtle inner highlight on top edge
+        this.mapGraphics.fillStyle(0xffffff, 0.08);
+        this.mapGraphics.fillRect(px, py, TILE_PX - 1, 1);
       }
     }
 
@@ -201,6 +204,8 @@ export class MapPanel {
 
     this.playerDot.fillStyle(0xffffff, 1);
     this.playerDot.fillCircle(px, py, 3);
+    this.playerDot.lineStyle(1, 0x000000, 0.5);
+    this.playerDot.strokeCircle(px, py, 3);
   }
 
   show(): void { this.container.setVisible(true); }
