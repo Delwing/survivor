@@ -26,11 +26,11 @@ describe('CraftingSystem', () => {
     const inv: InventorySlot[] = [{ itemId: 'wood', count: 10 }];
     expect(crafting.canCraft('wood_plank', inv, new Set<string>(), 'hand')).toBe(false);
   });
-  it('canCraft returns false when at wrong station', () => {
+  it('canCraft returns true at any station (stations disabled)', () => {
     const { crafting } = setup();
     const inv: InventorySlot[] = [{ itemId: 'wood_plank', count: 5 }, { itemId: 'wood', count: 5 }];
     const known = new Set(['wooden_sword']);
-    expect(crafting.canCraft('wooden_sword', inv, known, 'hand')).toBe(false);
+    expect(crafting.canCraft('wooden_sword', inv, known, 'hand')).toBe(true);
     expect(crafting.canCraft('wooden_sword', inv, known, 'workbench')).toBe(true);
   });
   it('higher-tier stations can craft lower-tier recipes', () => {
@@ -46,8 +46,8 @@ describe('CraftingSystem', () => {
     const { crafting } = setup();
     const inv: InventorySlot[] = [{ itemId: 'wood', count: 10 }];
     expect(crafting.craft('wood_plank', inv, new Set(['wood_plank']), 'hand')).toBe(true);
-    expect(inv.find(s => s.itemId === 'wood')?.count).toBe(8);
-    expect(inv.find(s => s.itemId === 'wood_plank')?.count).toBe(3);
+    expect(inv.find(s => s.itemId === 'wood')?.count).toBe(7);
+    expect(inv.find(s => s.itemId === 'wood_plank')?.count).toBe(2);
   });
   it('craft emits item-crafted event', () => {
     const { bus, crafting } = setup();

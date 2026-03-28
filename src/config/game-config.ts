@@ -4,9 +4,8 @@ export const CHUNK_SIZE = 16;
 export const ACTIVE_RADIUS = 3;
 export const RENDER_RADIUS = 3;
 
-// Controls how close biomes are. Higher = biomes closer together.
-// Crank up during development for faster testing.
-export const WORLD_SCALE = 0.02;
+// Controls biome size. Lower = larger biomes, more exploration needed.
+export const WORLD_SCALE = 0.008;
 
 export const GAME_WIDTH = 960;
 export const GAME_HEIGHT = 540;

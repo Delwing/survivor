@@ -39,6 +39,8 @@ export interface MobState {
   alertRange: number;
   attackRange: number;
   lastAttackTime: number;
+  wanderTarget: { x: number; y: number } | null;
+  wanderCooldown: number;
 }
 
 export type MobCategory = 'passive' | 'aggressive' | 'elite' | 'boss';

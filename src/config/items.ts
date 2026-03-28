@@ -56,7 +56,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
   { id: 'leather_armor', name: 'Leather Armor', description: 'Light protection from animal hide. DEF +3.', type: 'armor', tier: 1, stackable: false, maxStack: 1, quality: 'normal', modifiers: [], stats: { defense: 3 }, color: 0xdeb887 },
   { id: 'stone_axe', name: 'Stone Axe', description: 'Sturdier than wood. ATK +5. Good for early combat.', type: 'tool', tier: 1, stackable: false, maxStack: 1, quality: 'normal', modifiers: [], stats: { attack: 5 }, color: 0x808080 },
   { id: 'bone_arrow', name: 'Bone Arrow', description: 'Ammo for bows. Consumed on use.', type: 'consumable', tier: 1, stackable: true, maxStack: 20, quality: 'normal', modifiers: [], color: 0xfffacd },
-  { id: 'herbal_wrap', name: 'Herbal Wrap', description: 'Heals 10 HP. Made from herbs and slime gel.', type: 'consumable', tier: 1, stackable: true, maxStack: 10, quality: 'normal', modifiers: [], color: 0x32cd32 },
+  { id: 'herbal_wrap', name: 'Herbal Wrap', description: 'Heals 30 HP. Made from herbs and slime gel.', type: 'consumable', tier: 1, stackable: true, maxStack: 10, quality: 'normal', modifiers: [], color: 0x32cd32 },
   { id: 'berry_jam', name: 'Berry Jam', description: 'Restores 40 hunger. Sweet preserved berries.', type: 'consumable', tier: 1, stackable: true, maxStack: 10, quality: 'normal', modifiers: [], color: 0xff6347 },
 
   // ── Tier 2 Crafted (highlands resources) ──

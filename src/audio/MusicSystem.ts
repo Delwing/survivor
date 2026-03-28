@@ -159,6 +159,11 @@ export class MusicSystem {
     }
   }
 
+  /** Return the AudioContext (available after init). */
+  getAudioContext(): AudioContext | null {
+    return this.audioCtx;
+  }
+
   /** Set master volume (0–1). */
   setVolume(vol: number): void {
     if (this.masterGain) {

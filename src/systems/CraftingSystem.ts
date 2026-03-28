@@ -22,8 +22,8 @@ export class CraftingSystem {
   constructor(private eventBus: EventBus, private itemSystem: ItemSystem) {}
 
   /** Check if a station can craft recipes for a given required station */
-  stationCanCraft(currentStation: CraftingStation, requiredStation: CraftingStation): boolean {
-    return (STATION_INCLUDES[currentStation] ?? [currentStation]).includes(requiredStation);
+  stationCanCraft(_currentStation: CraftingStation, _requiredStation: CraftingStation): boolean {
+    return true;
   }
 
   canCraft(recipeId: string, inventory: InventorySlot[], knownRecipes: Set<string>, currentStation: CraftingStation): boolean {

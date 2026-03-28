@@ -12,27 +12,36 @@ const PANEL_W = 840;
 const PANEL_H = 480;
 const ROW_H = 88;
 const VISIBLE_ROWS = 4;
+const TAB_H = 26;
+const CONTENT_Y = PANEL_Y + 38 + TAB_H + 6;
 
-const STATION_NAMES: Record<CraftingStation, string> = {
-  hand: 'Hand',
-  campfire: 'Campfire',
-  workbench: 'Workbench',
-  forge: 'Forge',
-  alchemy_table: 'Alchemy Table',
-  magma_forge: 'Magma Forge',
-  void_altar: 'Void Altar',
-};
+type Category = 'all' | 'weapons' | 'armor' | 'tools' | 'consumables' | 'materials';
+
+const CATEGORIES: { id: Category; label: string; types: string[] }[] = [
+  { id: 'all', label: 'All', types: [] },
+  { id: 'weapons', label: 'Weapons', types: ['weapon'] },
+  { id: 'armor', label: 'Armor', types: ['armor'] },
+  { id: 'tools', label: 'Tools', types: ['tool'] },
+  { id: 'consumables', label: 'Food & Potions', types: ['consumable'] },
+  { id: 'materials', label: 'Materials', types: ['resource', 'misc'] },
+];
 
 export class CraftingPanel {
   private container: Phaser.GameObjects.Container;
   private stationTitle!: Phaser.GameObjects.Text;
   private scrollIndicator!: Phaser.GameObjects.Text;
   private recipeRows: Phaser.GameObjects.Container[] = [];
+  private tabElements: Phaser.GameObjects.GameObject[] = [];
   private scrollOffset = 0;
-  private _recipes: RecipeDefinition[] = [];
+  private _allRecipes: RecipeDefinition[] = [];
+  private _filteredRecipes: RecipeDefinition[] = [];
   private _inventory: InventorySlot[] = [];
   private _knownRecipes = new Set<string>();
   private _station: CraftingStation = 'hand';
+  private _category: Category = 'all';
+  private _crafting = false;
+  private _craftTween: Phaser.Tweens.Tween | null = null;
+  private _craftProgressBar: Phaser.GameObjects.Graphics | null = null;
 
   constructor(
     private scene: Phaser.Scene,
@@ -62,8 +71,8 @@ export class CraftingPanel {
     panelBg.strokeRect(PANEL_X, PANEL_Y, PANEL_W, PANEL_H);
     this.container.add(panelBg);
 
-    // Station title
-    this.stationTitle = scene.add.text(PANEL_X + 16, PANEL_Y + 12, 'CRAFTING - Hand', {
+    // Title
+    this.stationTitle = scene.add.text(PANEL_X + 16, PANEL_Y + 12, 'CRAFTING', {
       fontSize: '14px', color: '#e2e8f0', fontStyle: 'bold',
     });
     this.container.add(this.stationTitle);
@@ -75,31 +84,31 @@ export class CraftingPanel {
     closeBtn.on('pointerdown', () => this.hide());
     this.container.add(closeBtn);
 
-    // Divider
+    // Divider below title
     const div = scene.add.graphics();
     div.lineStyle(1, 0x334155);
     div.lineBetween(PANEL_X + 16, PANEL_Y + 38, PANEL_X + PANEL_W - 16, PANEL_Y + 38);
     this.container.add(div);
 
-    // Scroll buttons — large, clearly visible, high depth
+    // Scroll buttons
     const scrollBtnW = 40;
     const scrollBtnH = 28;
     const scrollBtnX = PANEL_X + PANEL_W - 56;
 
     const scrollUpBg = scene.add.graphics();
     scrollUpBg.fillStyle(0x334155, 0.9);
-    scrollUpBg.fillRect(scrollBtnX, PANEL_Y + 44, scrollBtnW, scrollBtnH);
+    scrollUpBg.fillRect(scrollBtnX, CONTENT_Y, scrollBtnW, scrollBtnH);
     scrollUpBg.lineStyle(1, 0x475569);
-    scrollUpBg.strokeRect(scrollBtnX, PANEL_Y + 44, scrollBtnW, scrollBtnH);
+    scrollUpBg.strokeRect(scrollBtnX, CONTENT_Y, scrollBtnW, scrollBtnH);
     this.container.add(scrollUpBg);
-    const scrollUpText = scene.add.text(scrollBtnX + scrollBtnW / 2, PANEL_Y + 44 + scrollBtnH / 2, '▲', {
+    const scrollUpText = scene.add.text(scrollBtnX + scrollBtnW / 2, CONTENT_Y + scrollBtnH / 2, '▲', {
       fontSize: '16px', color: '#e2e8f0',
     }).setOrigin(0.5);
     this.container.add(scrollUpText);
-    const scrollUpZone = scene.add.zone(scrollBtnX + scrollBtnW / 2, PANEL_Y + 44 + scrollBtnH / 2, scrollBtnW, scrollBtnH)
+    const scrollUpZone = scene.add.zone(scrollBtnX + scrollBtnW / 2, CONTENT_Y + scrollBtnH / 2, scrollBtnW, scrollBtnH)
       .setScrollFactor(0).setInteractive({ useHandCursor: true }).setDepth(20003);
     scrollUpZone.on('pointerdown', () => {
-      this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+      this.scrollOffset = Math.max(0, this.scrollOffset - VISIBLE_ROWS);
       this.refreshRows();
     });
     this.container.add(scrollUpZone);
@@ -117,8 +126,8 @@ export class CraftingPanel {
     const scrollDownZone = scene.add.zone(scrollBtnX + scrollBtnW / 2, PANEL_Y + PANEL_H - 50 + scrollBtnH / 2, scrollBtnW, scrollBtnH)
       .setScrollFactor(0).setInteractive({ useHandCursor: true }).setDepth(20003);
     scrollDownZone.on('pointerdown', () => {
-      const maxOffset = Math.max(0, this._recipes.length - VISIBLE_ROWS);
-      this.scrollOffset = Math.min(maxOffset, this.scrollOffset + 1);
+      const maxOffset = Math.max(0, this._filteredRecipes.length - VISIBLE_ROWS);
+      this.scrollOffset = Math.min(maxOffset, this.scrollOffset + VISIBLE_ROWS);
       this.refreshRows();
     });
     this.container.add(scrollDownZone);
@@ -126,26 +135,102 @@ export class CraftingPanel {
     // Mouse wheel scrolling
     scene.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gameObjects: any, _dx: number, dy: number) => {
       if (!this.container.visible) return;
-      const maxOffset = Math.max(0, this._recipes.length - VISIBLE_ROWS);
+      const maxOffset = Math.max(0, this._filteredRecipes.length - VISIBLE_ROWS);
       if (dy > 0) {
-        this.scrollOffset = Math.min(maxOffset, this.scrollOffset + 1);
+        this.scrollOffset = Math.min(maxOffset, this.scrollOffset + VISIBLE_ROWS);
       } else if (dy < 0) {
-        this.scrollOffset = Math.max(0, this.scrollOffset - 1);
+        this.scrollOffset = Math.max(0, this.scrollOffset - VISIBLE_ROWS);
       }
       this.refreshRows();
     });
 
     // Scroll indicator text
     this.scrollIndicator = scene.add.text(scrollBtnX + scrollBtnW / 2, PANEL_Y + PANEL_H / 2, '', {
-      fontSize: '9px', color: '#64748b',
+      fontSize: '10px', color: '#64748b',
     }).setOrigin(0.5);
     this.container.add(this.scrollIndicator);
 
     // Hint
     const hint = scene.add.text(PANEL_X + 16, PANEL_Y + PANEL_H - 22, '[C] to close  |  Scroll: wheel or arrows  |  Green = craftable', {
-      fontSize: '9px', color: '#475569',
+      fontSize: '10px', color: '#475569',
     });
     this.container.add(hint);
+  }
+
+  private buildTabs(): void {
+    const scene = this.scene;
+
+    // Destroy old tabs
+    for (const el of this.tabElements) el.destroy();
+    this.tabElements = [];
+
+    const tabY = PANEL_Y + 42;
+    let tabX = PANEL_X + 16;
+
+    for (const cat of CATEGORIES) {
+      // Count recipes in this category
+      const count = cat.id === 'all'
+        ? this._allRecipes.length
+        : this._allRecipes.filter(r => {
+            const def = getItemDef(r.output.item);
+            return def && cat.types.includes(def.type);
+          }).length;
+
+      if (count === 0 && cat.id !== 'all') continue;
+
+      const isActive = this._category === cat.id;
+      const label = `${cat.label} (${count})`;
+      const padX = 10;
+
+      // Measure text width
+      const textW = label.length * 7;
+      const btnW = textW + padX * 2;
+
+      const bg = scene.add.graphics();
+      if (isActive) {
+        bg.fillStyle(0x3b82f6, 0.9);
+        bg.fillRect(tabX, tabY, btnW, TAB_H);
+      } else {
+        bg.fillStyle(0x1e293b, 0.6);
+        bg.fillRect(tabX, tabY, btnW, TAB_H);
+        bg.lineStyle(1, 0x475569, 0.5);
+        bg.strokeRect(tabX, tabY, btnW, TAB_H);
+      }
+      this.container.add(bg);
+      this.tabElements.push(bg);
+
+      const text = scene.add.text(tabX + btnW / 2, tabY + TAB_H / 2, label, {
+        fontSize: '10px', color: isActive ? '#ffffff' : '#94a3b8', fontStyle: isActive ? 'bold' : 'normal',
+      }).setOrigin(0.5);
+      this.container.add(text);
+      this.tabElements.push(text);
+
+      const zone = scene.add.zone(tabX + btnW / 2, tabY + TAB_H / 2, btnW, TAB_H)
+        .setScrollFactor(0).setInteractive({ useHandCursor: true }).setDepth(20003);
+      zone.on('pointerdown', () => {
+        this._category = cat.id;
+        this.scrollOffset = 0;
+        this.applyFilter();
+        this.buildTabs();
+        this.refreshRows();
+      });
+      this.container.add(zone);
+      this.tabElements.push(zone);
+
+      tabX += btnW + 4;
+    }
+  }
+
+  private applyFilter(): void {
+    const cat = CATEGORIES.find(c => c.id === this._category);
+    if (!cat || cat.id === 'all') {
+      this._filteredRecipes = this._allRecipes;
+    } else {
+      this._filteredRecipes = this._allRecipes.filter(r => {
+        const def = getItemDef(r.output.item);
+        return def && cat.types.includes(def.type);
+      });
+    }
   }
 
   update(inventory: InventorySlot[], knownRecipes: Set<string>, currentStation: CraftingStation): void {
@@ -153,17 +238,20 @@ export class CraftingPanel {
     this._knownRecipes = knownRecipes;
     this._station = currentStation;
 
-    this.stationTitle.setText(`CRAFTING - ${STATION_NAMES[currentStation] ?? currentStation}`);
+    this.stationTitle.setText('CRAFTING');
 
-    // Get all known recipes for this station
-    this._recipes = this.craftingSystem.getKnownRecipes(knownRecipes).filter(r =>
+    this._allRecipes = this.craftingSystem.getKnownRecipes(knownRecipes).filter(r =>
       this.craftingSystem.stationCanCraft(currentStation, r.station)
     );
     this.scrollOffset = 0;
+    this.applyFilter();
+    this.buildTabs();
     this.refreshRows();
   }
 
   private refreshRows(): void {
+    this.cancelCraft();
+
     // Destroy old row containers
     for (const row of this.recipeRows) {
       row.destroy();
@@ -171,15 +259,15 @@ export class CraftingPanel {
     this.recipeRows = [];
 
     const scene = this.scene;
-    const startY = PANEL_Y + 48;
+    const startY = CONTENT_Y;
     const listX = PANEL_X + 16;
     const listW = PANEL_W - 80;
 
-    const visibleRecipes = this._recipes.slice(this.scrollOffset, this.scrollOffset + VISIBLE_ROWS);
+    const visibleRecipes = this._filteredRecipes.slice(this.scrollOffset, this.scrollOffset + VISIBLE_ROWS);
 
     // Update scroll indicator
     if (this.scrollIndicator) {
-      const total = this._recipes.length;
+      const total = this._filteredRecipes.length;
       if (total > VISIBLE_ROWS) {
         this.scrollIndicator.setText(`${this.scrollOffset + 1}-${Math.min(this.scrollOffset + VISIBLE_ROWS, total)} / ${total}`);
       } else {
@@ -221,7 +309,7 @@ export class CraftingPanel {
       // Recipe name + output count
       const outputLabel = `${recipe.name}  x${recipe.output.count}`;
       const nameText = scene.add.text(listX + 34, rowY + 8, outputLabel, {
-        fontSize: '11px', color: '#e2e8f0', fontStyle: 'bold',
+        fontSize: '12px', color: '#e2e8f0', fontStyle: 'bold',
       });
       rowContainer.add(nameText);
 
@@ -230,7 +318,7 @@ export class CraftingPanel {
       const desc = outputDef?.description ?? '';
       if (desc) {
         const descText = scene.add.text(listX + 34, rowY + 24, desc, {
-          fontSize: '8px', color: '#94a3b8', wordWrap: { width: listW - 120 },
+          fontSize: '10px', color: '#94a3b8', wordWrap: { width: listW - 120 },
         });
         rowContainer.add(descText);
       }
@@ -256,7 +344,7 @@ export class CraftingPanel {
           rowContainer.add(tagBg);
 
           const tagText = scene.add.text(tagX + tagW / 2, tagY + 7, `${label} ${value}`, {
-            fontSize: '8px', color, fontStyle: 'bold',
+            fontSize: '10px', color, fontStyle: 'bold',
           }).setOrigin(0.5);
           rowContainer.add(tagText);
           tagX += tagW + 4;
@@ -282,7 +370,7 @@ export class CraftingPanel {
         }
 
         const ingText = scene.add.text(ingX, ingY, `${ingName} ${have}/${ing.count}`, {
-          fontSize: '9px', color: ingColor,
+          fontSize: '10px', color: ingColor,
         });
         rowContainer.add(ingText);
         ingX += ingText.width + 12;
@@ -317,12 +405,42 @@ export class CraftingPanel {
           .setScrollFactor(0).setInteractive({ useHandCursor: true });
         hitZone.setDepth(20002);
         hitZone.on('pointerdown', () => {
-          const success = this.craftingSystem.craft(recipe.id, this._inventory, this._knownRecipes, this._station);
-          if (success) {
-            this.onCrafted(recipe.output.item, recipe.output.count);
-            // Refresh the panel
-            this.update(this._inventory, this._knownRecipes, this._station);
-          }
+          if (this._crafting) return;
+          if (!this.craftingSystem.canCraft(recipe.id, this._inventory, this._knownRecipes, this._station)) return;
+          this._crafting = true;
+
+          const duration = 300 + (recipe.tier ?? 1) * 200;
+
+          const progressBar = scene.add.graphics();
+          progressBar.setDepth(20002);
+          rowContainer.add(progressBar);
+          this._craftProgressBar = progressBar;
+
+          btnText.setText('...');
+
+          const progress = { value: 0 };
+          this._craftTween = scene.tweens.add({
+            targets: progress,
+            value: 1,
+            duration,
+            ease: 'Linear',
+            onUpdate: () => {
+              progressBar.clear();
+              progressBar.fillStyle(0x22c55e, 0.5);
+              progressBar.fillRect(btnX, btnY, btnW * progress.value, 24);
+            },
+            onComplete: () => {
+              progressBar.destroy();
+              this._craftProgressBar = null;
+              this._craftTween = null;
+              this._crafting = false;
+              const success = this.craftingSystem.craft(recipe.id, this._inventory, this._knownRecipes, this._station);
+              if (success) {
+                this.onCrafted(recipe.output.item, recipe.output.count);
+              }
+              this.refreshAfterCraft();
+            },
+          });
         });
         rowContainer.add(hitZone);
       }
@@ -335,7 +453,7 @@ export class CraftingPanel {
     if (visibleRecipes.length === 0) {
       const emptyText = scene.add.text(
         PANEL_X + PANEL_W / 2, PANEL_Y + PANEL_H / 2,
-        'No recipes available at this station.\nBuild or approach a station to unlock more.',
+        'No recipes discovered in this category yet.\nGather new materials to unlock recipes.',
         { fontSize: '12px', color: '#64748b', align: 'center' }
       ).setOrigin(0.5);
       const emptyContainer = scene.add.container(0, 0);
@@ -353,7 +471,31 @@ export class CraftingPanel {
   }
 
   hide(): void {
+    this.cancelCraft();
     this.container.setVisible(false);
+  }
+
+  private cancelCraft(): void {
+    if (this._craftTween) {
+      this._craftTween.stop();
+      this._craftTween = null;
+    }
+    if (this._craftProgressBar) {
+      this._craftProgressBar.destroy();
+      this._craftProgressBar = null;
+    }
+    this._crafting = false;
+  }
+
+  private refreshAfterCraft(): void {
+    this._allRecipes = this.craftingSystem.getKnownRecipes(this._knownRecipes).filter(r =>
+      this.craftingSystem.stationCanCraft(this._station, r.station)
+    );
+    this.applyFilter();
+    const maxOffset = Math.max(0, this._filteredRecipes.length - VISIBLE_ROWS);
+    this.scrollOffset = Math.min(this.scrollOffset, maxOffset);
+    this.buildTabs();
+    this.refreshRows();
   }
 
   getContainer(): Phaser.GameObjects.Container { return this.container; }

@@ -9,6 +9,7 @@ function makeMob(overrides: Partial<MobState> = {}): MobState {
     position: { x: 100, y: 100 }, aiState: 'idle',
     homePosition: { x: 100, y: 100 }, target: null,
     leashDistance: 200, alertRange: 100, attackRange: 30, lastAttackTime: 0,
+    wanderTarget: null, wanderCooldown: 5000,
     ...overrides,
   };
 }
@@ -16,38 +17,44 @@ function makeMob(overrides: Partial<MobState> = {}): MobState {
 describe('MobAI', () => {
   it('stays idle when player is out of alert range', () => {
     const mob = makeMob({ alertRange: 100 });
-    const result = MobAI.update(mob, { x: 300, y: 300 }, 'aggressive');
+    const result = MobAI.update(mob, { x: 300, y: 300 }, 'aggressive', 16);
     expect(result.aiState).toBe('idle');
   });
   it('transitions to alert when player enters alert range', () => {
     const mob = makeMob({ alertRange: 100, aiState: 'idle' });
-    const result = MobAI.update(mob, { x: 150, y: 150 }, 'aggressive');
+    const result = MobAI.update(mob, { x: 150, y: 150 }, 'aggressive', 16);
     expect(result.aiState).toBe('alert');
   });
   it('transitions from alert to chase when close enough', () => {
     const mob = makeMob({ alertRange: 100, aiState: 'alert' });
-    const alerted = MobAI.update(mob, { x: 150, y: 150 }, 'aggressive');
-    const chasing = MobAI.update(alerted, { x: 150, y: 150 }, 'aggressive');
+    const alerted = MobAI.update(mob, { x: 150, y: 150 }, 'aggressive', 16);
+    const chasing = MobAI.update(alerted, { x: 150, y: 150 }, 'aggressive', 16);
     expect(chasing.aiState).toBe('chase');
   });
   it('transitions to attack when in attack range', () => {
     const mob = makeMob({ attackRange: 30, aiState: 'chase' });
-    const result = MobAI.update(mob, { x: 120, y: 110 }, 'aggressive');
+    const result = MobAI.update(mob, { x: 120, y: 110 }, 'aggressive', 16);
     expect(result.aiState).toBe('attack');
   });
   it('returns to idle when player exceeds leash distance', () => {
     const mob = makeMob({ aiState: 'chase', leashDistance: 200 });
-    const result = MobAI.update(mob, { x: 500, y: 500 }, 'aggressive');
+    const result = MobAI.update(mob, { x: 500, y: 500 }, 'aggressive', 16);
     expect(result.aiState).toBe('returning');
   });
   it('passive mobs flee when damaged', () => {
     const mob = makeMob({ aiState: 'idle' });
-    const result = MobAI.update(mob, { x: 120, y: 120 }, 'passive');
+    const result = MobAI.update(mob, { x: 120, y: 120 }, 'passive', 16);
     expect(result.aiState).toBe('flee');
   });
   it('passive mobs stay idle when player is far', () => {
     const mob = makeMob({ aiState: 'idle', alertRange: 100 });
-    const result = MobAI.update(mob, { x: 500, y: 500 }, 'passive');
+    const result = MobAI.update(mob, { x: 500, y: 500 }, 'passive', 16);
     expect(result.aiState).toBe('idle');
+  });
+  it('mobs eventually start wandering after cooldown', () => {
+    const mob = makeMob({ wanderCooldown: 100 });
+    const result = MobAI.update(mob, { x: 500, y: 500 }, 'aggressive', 200);
+    expect(result.aiState).toBe('patrol');
+    expect(result.wanderTarget).not.toBeNull();
   });
 });

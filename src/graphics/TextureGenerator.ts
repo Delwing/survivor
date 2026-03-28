@@ -40,12 +40,12 @@ export function createPlayerAnimations(scene: Phaser.Scene): void {
   scene.anims.create({
     key: 'player_gather',
     frames: [
+      { key: 'player_f7' },
       { key: 'player_f6' },
       { key: 'player_f12' },
-      { key: 'player_f7' },
       { key: 'player_f13' },
     ],
-    frameRate: 4,
+    frameRate: 6,
     repeat: -1,
   });
   scene.anims.create({
@@ -635,34 +635,105 @@ function drawGolem(scene: Phaser.Scene, key: string, body: string, shade: string
 
 function drawBat(scene: Phaser.Scene): void {
   const w = 18, h = 16;
+
+  // Frame 0: wings up
+  {
+    const ctx = makeCanvas(scene, 'mob_cave_bat_f0', w, h);
+    // Wings raised high
+    rect(ctx, 1, 2, 4, 4, P.grayDark);
+    rect(ctx, 13, 2, 4, 4, P.grayDark);
+    rect(ctx, 0, 3, 3, 3, P.grayDark);
+    rect(ctx, 15, 3, 3, 3, P.grayDark);
+    // Wing bone lines
+    px(ctx, 1, 2, P.grayDeep); px(ctx, 3, 4, P.grayDeep);
+    px(ctx, 16, 2, P.grayDeep); px(ctx, 14, 4, P.grayDeep);
+    // Wing-fold highlights
+    px(ctx, 2, 4, '#4a4a5a'); px(ctx, 15, 4, '#4a4a5a');
+    // Body
+    rect(ctx, 6, 4, 6, 7, P.grayDeep);
+    rect(ctx, 7, 5, 4, 5, P.grayDark);
+    // Feet/claws
+    px(ctx, 7, 11, P.grayDark); px(ctx, 8, 12, P.grayDark);
+    px(ctx, 10, 11, P.grayDark); px(ctx, 9, 12, P.grayDark);
+    // Head
+    rect(ctx, 7, 2, 4, 3, P.grayDark);
+    // Eyes
+    rect(ctx, 7, 3, 2, 2, P.red);
+    rect(ctx, 11, 3, 2, 2, P.red);
+    px(ctx, 8, 3, P.redLight); px(ctx, 12, 3, P.redLight);
+    // Ears
+    px(ctx, 7, 1, P.grayDark); px(ctx, 6, 0, P.grayDark);
+    px(ctx, 11, 1, P.grayDark); px(ctx, 12, 0, P.grayDark);
+    drawSpriteOutline(ctx, w, h, P.outline);
+    finalize(scene, 'mob_cave_bat_f0');
+  }
+
+  // Frame 1: wings down
+  {
+    const ctx = makeCanvas(scene, 'mob_cave_bat_f1', w, h);
+    // Wings spread low
+    rect(ctx, 0, 7, 5, 4, P.grayDark);
+    rect(ctx, 13, 7, 5, 4, P.grayDark);
+    rect(ctx, 2, 6, 4, 3, P.grayDark);
+    rect(ctx, 12, 6, 4, 3, P.grayDark);
+    // Wing bone lines
+    px(ctx, 1, 10, P.grayDeep); px(ctx, 3, 8, P.grayDeep);
+    px(ctx, 16, 10, P.grayDeep); px(ctx, 14, 8, P.grayDeep);
+    // Wing-fold highlights
+    px(ctx, 2, 9, '#4a4a5a'); px(ctx, 15, 9, '#4a4a5a');
+    // Body
+    rect(ctx, 6, 4, 6, 7, P.grayDeep);
+    rect(ctx, 7, 5, 4, 5, P.grayDark);
+    // Feet/claws
+    px(ctx, 7, 11, P.grayDark); px(ctx, 8, 12, P.grayDark);
+    px(ctx, 10, 11, P.grayDark); px(ctx, 9, 12, P.grayDark);
+    // Head
+    rect(ctx, 7, 2, 4, 3, P.grayDark);
+    // Eyes
+    rect(ctx, 7, 3, 2, 2, P.red);
+    rect(ctx, 11, 3, 2, 2, P.red);
+    px(ctx, 8, 3, P.redLight); px(ctx, 12, 3, P.redLight);
+    // Ears
+    px(ctx, 7, 1, P.grayDark); px(ctx, 6, 0, P.grayDark);
+    px(ctx, 11, 1, P.grayDark); px(ctx, 12, 0, P.grayDark);
+    drawSpriteOutline(ctx, w, h, P.outline);
+    finalize(scene, 'mob_cave_bat_f1');
+  }
+
+  // Also keep a static key for fallback
   const ctx = makeCanvas(scene, 'mob_cave_bat', w, h);
-  // Wing membranes — spread wide
   rect(ctx, 0, 5, 5, 5, P.grayDark);
   rect(ctx, 13, 5, 5, 5, P.grayDark);
   rect(ctx, 2, 3, 4, 4, P.grayDark);
   rect(ctx, 12, 3, 4, 4, P.grayDark);
-  // Wing bone lines
   px(ctx, 1, 9, P.grayDeep); px(ctx, 3, 6, P.grayDeep);
   px(ctx, 16, 9, P.grayDeep); px(ctx, 14, 6, P.grayDeep);
-  // Wing-fold highlights
   px(ctx, 2, 7, '#4a4a5a'); px(ctx, 15, 7, '#4a4a5a');
-  // Body
   rect(ctx, 6, 4, 6, 7, P.grayDeep);
   rect(ctx, 7, 5, 4, 5, P.grayDark);
-  // Feet/claws hanging
   px(ctx, 7, 11, P.grayDark); px(ctx, 8, 12, P.grayDark);
   px(ctx, 10, 11, P.grayDark); px(ctx, 9, 12, P.grayDark);
-  // Head
   rect(ctx, 7, 2, 4, 3, P.grayDark);
-  // Eyes — red glow
   rect(ctx, 7, 3, 2, 2, P.red);
   rect(ctx, 11, 3, 2, 2, P.red);
   px(ctx, 8, 3, P.redLight); px(ctx, 12, 3, P.redLight);
-  // Ears — pointed
   px(ctx, 7, 1, P.grayDark); px(ctx, 6, 0, P.grayDark);
   px(ctx, 11, 1, P.grayDark); px(ctx, 12, 0, P.grayDark);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, 'mob_cave_bat');
+}
+
+export function createBatAnimation(scene: Phaser.Scene): void {
+  if (scene.anims.exists('bat_fly')) return;
+  scene.anims.create({
+    key: 'bat_fly',
+    frames: [
+      { key: 'mob_cave_bat_f0' },
+      { key: 'mob_cave_bat_f1' },
+    ],
+    frameRate: 6,
+    repeat: -1,
+  });
 }
 
 function drawFrog(scene: Phaser.Scene): void {

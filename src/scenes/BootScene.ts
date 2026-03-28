@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { generateAllTextures } from '@/graphics/TextureGenerator';
+import { generateAllTextures, createBatAnimation } from '@/graphics/TextureGenerator';
 
 export class BootScene extends Phaser.Scene {
   constructor() { super({ key: 'Boot' }); }
@@ -21,5 +21,8 @@ export class BootScene extends Phaser.Scene {
     generateAllTextures(this);
   }
 
-  create(): void { this.scene.start('MainMenu'); }
+  create(): void {
+    createBatAnimation(this);
+    this.scene.start('MainMenu');
+  }
 }

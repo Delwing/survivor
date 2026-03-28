@@ -258,7 +258,7 @@ export class InventoryPanel {
     const def = getItemDef(slot.itemId);
     if (!def) return;
 
-    if (def.type === 'weapon') {
+    if (def.type === 'weapon' || def.type === 'tool') {
       this._equipment.weapon = slot.itemId;
       this.eventBus.emit('equipment-changed', { slot: 'weapon', itemId: slot.itemId });
     } else if (def.type === 'armor') {

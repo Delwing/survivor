@@ -32,46 +32,46 @@ export interface ToolPower {
 export const TOOL_POWER: Record<string, ToolPower> = {
   wooden_axe:    { type: 'axe',     tier: 1, hitReduction: 0, yieldBonus: 0 },
   stone_axe:     { type: 'axe',     tier: 1, hitReduction: 1, yieldBonus: 0 },
-  iron_axe:      { type: 'axe',     tier: 2, hitReduction: 2, yieldBonus: 1 },
+  iron_axe:      { type: 'axe',     tier: 2, hitReduction: 1, yieldBonus: 0 },
   wooden_pickaxe:{ type: 'pickaxe', tier: 1, hitReduction: 0, yieldBonus: 0 },
-  iron_pickaxe:  { type: 'pickaxe', tier: 2, hitReduction: 1, yieldBonus: 1 },
-  magma_pickaxe: { type: 'pickaxe', tier: 3, hitReduction: 2, yieldBonus: 2 },
+  iron_pickaxe:  { type: 'pickaxe', tier: 2, hitReduction: 1, yieldBonus: 0 },
+  magma_pickaxe: { type: 'pickaxe', tier: 3, hitReduction: 2, yieldBonus: 1 },
 };
 
 export const GATHERING_CONFIG: Record<string, GatheringConfig> = {
   // ── Tier 1 — always hand-gatherable, tools speed it up ──
   berries:       { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 2, toolYield: 2 },
-  herbs:         { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
+  herbs:         { preferredTool: null,      toolRequired: false, handHits: 2, toolHits: 2, handYield: 1, toolYield: 1 },
   slime_gel:     { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
   bone:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
   hide:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
   meat:          { preferredTool: null,      toolRequired: false, handHits: 1, toolHits: 1, handYield: 1, toolYield: 1 },
 
-  // Wood: hand = slow (5 hits, 1 yield), axe = fast (3 hits, 1 yield), good axe = very fast
-  wood:          { preferredTool: 'axe',     toolRequired: false, handHits: 5, toolHits: 3, handYield: 1, toolYield: 1 },
+  // Wood: hand = very slow (8 hits), axe = moderate (5 hits)
+  wood:          { preferredTool: 'axe',     toolRequired: false, handHits: 8, toolHits: 5, handYield: 1, toolYield: 1 },
 
-  // Stone: hand = slow (6 hits, 1 yield), pickaxe = fast (3 hits, 1 yield)
-  stone:         { preferredTool: 'pickaxe', toolRequired: false, handHits: 6, toolHits: 3, handYield: 1, toolYield: 1 },
+  // Stone: hand = very slow (10 hits), pickaxe = moderate (5 hits)
+  stone:         { preferredTool: 'pickaxe', toolRequired: false, handHits: 10, toolHits: 5, handYield: 1, toolYield: 1 },
 
   // ── Tier 2 — need pickaxe (can't mine ore by hand) ──
-  iron_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 4, handYield: 0, toolYield: 1 },
-  copper_ore:    { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 4, handYield: 0, toolYield: 1 },
-  coal:          { preferredTool: 'pickaxe', toolRequired: false, handHits: 4, toolHits: 2, handYield: 1, toolYield: 2 },
-  crystal:       { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
+  iron_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
+  copper_ore:    { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
+  coal:          { preferredTool: 'pickaxe', toolRequired: false, handHits: 6, toolHits: 3, handYield: 1, toolYield: 1 },
+  crystal:       { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 8, handYield: 0, toolYield: 1 },
 
   // ── Tier 3 — swamp, hand-gatherable but slow ──
-  rare_mushroom: { preferredTool: null,      toolRequired: false, handHits: 2, toolHits: 2, handYield: 1, toolYield: 1 },
-  swamp_reed:    { preferredTool: null,      toolRequired: false, handHits: 2, toolHits: 2, handYield: 2, toolYield: 2 },
+  rare_mushroom: { preferredTool: null,      toolRequired: false, handHits: 3, toolHits: 3, handYield: 1, toolYield: 1 },
+  swamp_reed:    { preferredTool: null,      toolRequired: false, handHits: 3, toolHits: 3, handYield: 1, toolYield: 1 },
 
   // ── Tier 4 — requires tools ──
-  obsidian:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
-  fire_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
-  rare_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 6, handYield: 0, toolYield: 1 },
+  obsidian:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 10, handYield: 0, toolYield: 1 },
+  fire_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 8,  handYield: 0, toolYield: 1 },
+  rare_ore:      { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 10, handYield: 0, toolYield: 1 },
 
   // ── Tier 5 — requires tools ──
-  shadow_essence:{ preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
-  void_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 7, handYield: 0, toolYield: 1 },
-  corrupted_wood:{ preferredTool: 'axe',     toolRequired: true, handHits: 0, toolHits: 5, handYield: 0, toolYield: 1 },
+  shadow_essence:{ preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 8,  handYield: 0, toolYield: 1 },
+  void_crystal:  { preferredTool: 'pickaxe', toolRequired: true, handHits: 0, toolHits: 12, handYield: 0, toolYield: 1 },
+  corrupted_wood:{ preferredTool: 'axe',     toolRequired: true, handHits: 0, toolHits: 8,  handYield: 0, toolYield: 1 },
 };
 
 /** Get the effective gathering result for a resource + equipped weapon */

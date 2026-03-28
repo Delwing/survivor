@@ -30,6 +30,7 @@ import { getGatherResult } from '@/config/gathering';
 import { CraftingStation } from '@/types/items';
 import { RECIPE_DEFINITIONS } from '@/config/recipes';
 import { MusicSystem } from '@/audio/MusicSystem';
+import { SFXSystem } from '@/audio/SFXSystem';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
@@ -70,6 +71,7 @@ export class GameScene extends Phaser.Scene {
   private lastPlayerAttack = 0;
   private gatherTarget: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite } | null = null;
   private stationTarget: { type: CraftingStation; x: number; y: number } | null = null;
+  private mobTarget: { state: MobState; sprite: Phaser.GameObjects.Sprite } | null = null;
   private moveMarker!: Phaser.GameObjects.Graphics;
   private hoveredResource: Phaser.GameObjects.Sprite | null = null;
   private tooltip!: Phaser.GameObjects.Text;
@@ -82,6 +84,7 @@ export class GameScene extends Phaser.Scene {
   private runStartTime = 0;
   private knownRecipes = new Set<string>();
   private currentBiomeName = 'Forest';
+  private currentBiomeId = 'forest';
 
   private lastStarveDamage = 0;
   private warnedHungry = false;
@@ -95,8 +98,11 @@ export class GameScene extends Phaser.Scene {
   private pendingBuild: CraftingStation | null = null;
   /** Set to true by any UI click handler; cleared at start of each frame */
   inputConsumed = false;
+  /** True when the pointer is hovering over any fixed UI element */
+  private pointerOverUI = false;
 
   private musicSystem!: MusicSystem;
+  private sfx!: SFXSystem;
   private fpsText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: 'Game' }); }
@@ -104,6 +110,7 @@ export class GameScene extends Phaser.Scene {
   create(data: { seed: string }): void {
     // Init music system
     this.musicSystem = new MusicSystem();
+    this.sfx = new SFXSystem();
 
     // Init systems
     this.eventBus = new EventBus();
@@ -128,7 +135,7 @@ export class GameScene extends Phaser.Scene {
       { id: 'consumable', label: '🧪', cooldown: 0, maxCooldown: 1000, onActivate: () => {} },
     ];
     this.abilityBar = new AbilityBar(this, abilities);
-    this.quickInventory = new QuickInventory(this);
+    this.quickInventory = new QuickInventory(this, this.eventBus, () => this.uiManager.isOpen() || this.buildMenuOpen);
 
     // Inventory panel
     this.inventoryPanel = new InventoryPanel(this, this.itemSystem, this.eventBus);
@@ -146,13 +153,10 @@ export class GameScene extends Phaser.Scene {
     this.eventBus.on('equipment-changed', (data: { slot: string; itemId: string }) => {
       if (data.slot === 'weapon') {
         this.player.equipment.weapon = data.itemId;
-        const def = getItemDef(data.itemId);
-        if (def?.stats?.attack) this.player.stats.attack = def.stats.attack;
-        if (def?.stats?.attackSpeed) this.player.stats.attackSpeed = def.stats.attackSpeed;
+        this.recalcStats();
       } else if (data.slot === 'armor') {
         this.player.equipment.armor = data.itemId;
-        const def = getItemDef(data.itemId);
-        if (def?.stats?.defense) this.player.stats.defense = def.stats.defense;
+        this.recalcStats();
       }
     });
 
@@ -177,9 +181,9 @@ export class GameScene extends Phaser.Scene {
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+40 Food', '#fbbf24');
       } else if (itemId === 'herbal_wrap') {
-        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 10);
+        this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 30);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
-        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+10 HP', '#86efac');
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+30 HP', '#86efac');
       } else if (itemId === 'antidote') {
         this.player.stats.health = Math.min(this.player.stats.maxHealth, this.player.stats.health + 30);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
@@ -205,7 +209,7 @@ export class GameScene extends Phaser.Scene {
         const def = getItemDef(itemId);
         const name = def?.name ?? itemId;
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 24, `+${count} ${name}`, '#fbbf24');
-        this.quickInventory.update(this.player.inventory);
+        this.quickInventory.update(this.player.inventory, this.player.equipment.weapon);
       },
     );
     this.uiManager.registerPanel('crafting', this.craftingPanel.getContainer());
@@ -299,6 +303,27 @@ export class GameScene extends Phaser.Scene {
     // Render initial chunks
     this.updateChunks();
 
+    // Track when pointer is over any fixed UI element (scrollFactor 0, high depth)
+    this.input.on('gameobjectover', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
+      if ((obj as any).scrollFactorX === 0 || (obj as any).depth >= 10000) {
+        this.pointerOverUI = true;
+      }
+    });
+    this.input.on('gameobjectout', (_pointer: Phaser.Input.Pointer, obj: Phaser.GameObjects.GameObject) => {
+      if ((obj as any).scrollFactorX === 0 || (obj as any).depth >= 10000) {
+        this.pointerOverUI = false;
+      }
+    });
+    // Safety: if the object that set pointerOverUI was destroyed, the out event
+    // never fires. Re-derive each frame from what's actually under the pointer.
+    this.input.on('pointermove', () => {
+      if (!this.pointerOverUI) return;
+      const hitList = this.input.hitTestPointer(this.input.activePointer);
+      this.pointerOverUI = hitList.some(
+        (o: Phaser.GameObjects.GameObject) => (o as any).scrollFactorX === 0 || (o as any).depth >= 10000,
+      );
+    });
+
     // Any interactive game object clicked = consume input (don't walk)
     this.input.on('gameobjectdown', () => {
       this.inputConsumed = true;
@@ -309,12 +334,12 @@ export class GameScene extends Phaser.Scene {
       // Bootstrap audio on first user interaction (browser autoplay policy)
       this.musicSystem.init();
       this.musicSystem.start();
+      const ctx = this.musicSystem.getAudioContext();
+      if (ctx) this.sfx.init(ctx);
 
-      // Ignore clicks consumed by UI
+      // Ignore clicks when pointer is over any UI
+      if (this.isInputBlockedByUI()) return;
       if (this.inputConsumed) return;
-      if (pointer.y > this.cameras.main.height - 80) return;
-      if (this.uiManager.isOpen()) return;
-      if (this.buildMenuOpen) return;
 
       // Check if clicking a station — walk to it, then open crafting
       for (const station of this.placedStations) {
@@ -322,27 +347,58 @@ export class GameScene extends Phaser.Scene {
         if (d < 35) {
           this.stationTarget = station;
           this.gatherTarget = null;
+          this.mobTarget = null;
           this.moveTarget = { x: station.x, y: station.y };
           this.showMoveMarker(station.x, station.y, true);
           return;
         }
       }
 
-      // Check if clicking a resource — walk to it first, then gather
+      // Check if clicking a mob — follow and attack it
+      let closestMob: typeof this.mobs[0] | null = null;
+      let closestMobDist = 35;
+      for (const mob of this.mobs) {
+        if (mob.state.stats.health <= 0) continue;
+        const d = distance(pointer.worldX, pointer.worldY, mob.sprite.x, mob.sprite.y);
+        if (d < closestMobDist) {
+          closestMobDist = d;
+          closestMob = mob;
+        }
+      }
+      if (closestMob) {
+        this.mobTarget = closestMob;
+        this.gatherTarget = null;
+        this.stationTarget = null;
+        this.moveTarget = { x: closestMob.sprite.x, y: closestMob.sprite.y };
+        this.showMoveMarker(closestMob.sprite.x, closestMob.sprite.y, true);
+        return;
+      }
+
+      // Check if clicking a resource — find closest one to click, walk to it, then gather
+      let closestRes: typeof this.resourceNodes[0] | null = null;
+      let closestDist = 30;
       for (const res of this.resourceNodes) {
         const d = distance(pointer.worldX, pointer.worldY, res.sprite.x, res.sprite.y);
-        if (d < 30 && res.state.remaining > 0) {
-          this.gatherTarget = res;
-          this.stationTarget = null;
-          this.moveTarget = { x: res.sprite.x, y: res.sprite.y };
-          this.showMoveMarker(res.sprite.x, res.sprite.y, true);
-          return;
+        if (d < closestDist && res.state.remaining > 0) {
+          closestDist = d;
+          closestRes = res;
         }
+      }
+      if (closestRes) {
+        // If already gathering this resource, ignore the click
+        if (this.gatherTarget === closestRes) return;
+        this.gatherTarget = closestRes;
+        this.stationTarget = null;
+        this.mobTarget = null;
+        this.moveTarget = { x: closestRes.sprite.x, y: closestRes.sprite.y };
+        this.showMoveMarker(closestRes.sprite.x, closestRes.sprite.y, true);
+        return;
       }
 
       // Normal movement
       this.gatherTarget = null;
       this.stationTarget = null;
+      this.mobTarget = null;
       this.moveTarget = { x: pointer.worldX, y: pointer.worldY };
       this.showMoveMarker(pointer.worldX, pointer.worldY, false);
     });
@@ -356,6 +412,9 @@ export class GameScene extends Phaser.Scene {
       }
       this.input.setDefaultCursor('default');
       this.tooltip.setVisible(false);
+
+      // Block hovers when pointer is over any UI element
+      if (this.isInputBlockedByUI()) return;
 
       // Check station hover
       for (const station of this.placedStations) {
@@ -416,15 +475,11 @@ export class GameScene extends Phaser.Scene {
       this.endRun('Debug exit');
     });
 
-    // B key — open build menu
-    this.input.keyboard!.on('keydown-B', () => {
-      this.toggleBuildMenu();
-    });
-
     // Listen for biome changes and map exploration
     this.eventBus.on('chunk-entered', (eventData) => {
       const biome = BIOME_DEFINITIONS.find(b => b.id === eventData.biomeId);
       this.currentBiomeName = biome?.name ?? 'Unknown';
+      this.currentBiomeId = eventData.biomeId;
       this.mapPanel?.addExploredChunk(eventData.chunkX, eventData.chunkY, eventData.biomeId);
       this.musicSystem.setBiome(eventData.biomeId);
     });
@@ -446,7 +501,7 @@ export class GameScene extends Phaser.Scene {
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
     this.hud.update(this.player, this.currentBiomeName);
-    this.quickInventory.update(this.player.inventory);
+    this.quickInventory.update(this.player.inventory, this.player.equipment.weapon);
     this.updateMobs(delta);
 
     // Update NPC gathering
@@ -471,10 +526,17 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // Max recipe tier discoverable via scroll per biome
+  private static readonly BIOME_SCROLL_TIER: Record<string, number> = {
+    forest: 3, rocky_highlands: 3, swamp: 3,
+    volcanic_wastes: 4, corrupted_lands: 5,
+  };
+
   private handleItemPickedUp(itemId: string): void {
-    // Handle recipe scroll
+    // Handle recipe scroll — tier-gated by current biome
     if (itemId === 'recipe_scroll') {
-      const undiscovered = RECIPE_DEFINITIONS.filter(r => r.discovery === 'scroll' && !this.knownRecipes.has(r.id));
+      const maxTier = GameScene.BIOME_SCROLL_TIER[this.currentBiomeId] ?? 3;
+      const undiscovered = RECIPE_DEFINITIONS.filter(r => r.discovery === 'scroll' && r.tier <= maxTier && !this.knownRecipes.has(r.id));
       if (undiscovered.length > 0) {
         const recipe = undiscovered[Math.floor(Math.random() * undiscovered.length)];
         this.knownRecipes.add(recipe.id);
@@ -489,11 +551,16 @@ export class GameScene extends Phaser.Scene {
     if (!this.discoveredMaterials.has(itemId)) {
       this.discoveredMaterials.add(itemId);
       const triggered = this.craftingSystem.checkMaterialDiscovery(itemId);
+      let recipeIdx = 0;
       for (const recipe of triggered) {
         if (!this.knownRecipes.has(recipe.id)) {
           this.knownRecipes.add(recipe.id);
           this.progression.addRecipe(recipe.id);
-          this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, `New recipe: ${recipe.name}!`, '#fbbf24');
+          const delay = recipeIdx * 600;
+          this.time.delayedCall(delay, () => {
+            this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 30, `New recipe: ${recipe.name}!`, '#fbbf24');
+          });
+          recipeIdx++;
         }
       }
     }
@@ -503,7 +570,7 @@ export class GameScene extends Phaser.Scene {
     const { stats } = this.player;
 
     // Deplete hunger over time (~1 per second)
-    stats.hunger = Math.max(0, Math.min(stats.maxHunger, stats.hunger - delta * 0.001));
+    stats.hunger = Math.max(0, Math.min(stats.maxHunger, stats.hunger - delta * 0.0002));
 
     // One-time threshold warnings
     if (stats.hunger < 30 && !this.warnedHungry) {
@@ -536,11 +603,60 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  /** Recalculate player stats from base + equipment bonuses */
+  private recalcStats(): void {
+    const BASE_ATK = 3;
+    const BASE_DEF = 0;
+    const BASE_SPD = 1.0;
+
+    const weaponDef = this.player.equipment.weapon ? getItemDef(this.player.equipment.weapon) : null;
+    const armorDef = this.player.equipment.armor ? getItemDef(this.player.equipment.armor) : null;
+
+    this.player.stats.attack = BASE_ATK + (weaponDef?.stats?.attack ?? 0);
+    this.player.stats.defense = BASE_DEF + (armorDef?.stats?.defense ?? 0);
+    this.player.stats.attackSpeed = BASE_SPD + (weaponDef?.stats?.attackSpeed ? weaponDef.stats.attackSpeed - 1.0 : 0);
+    if (armorDef?.stats?.speed) {
+      this.player.stats.speed = 120 + armorDef.stats.speed;
+    } else {
+      this.player.stats.speed = 120;
+    }
+  }
+
   private updatePlayerMovement(delta: number): void {
+    // Follow mob target — always runs, even when moveTarget is null
+    if (this.mobTarget) {
+      if (this.mobTarget.state.stats.health <= 0) {
+        this.mobTarget = null;
+        this.moveTarget = null;
+        this.moveMarker.setVisible(false);
+        this.playerSprite.play('player_idle', true);
+        return;
+      }
+      const mobDx = this.mobTarget.sprite.x - this.playerSprite.x;
+      const mobDy = this.mobTarget.sprite.y - this.playerSprite.y;
+      const mobDist = Math.sqrt(mobDx * mobDx + mobDy * mobDy);
+      this.moveMarker.setPosition(this.mobTarget.sprite.x, this.mobTarget.sprite.y);
+      // Hysteresis: stop at 36px, only resume chasing at 46px+
+      const alreadyStopped = this.moveTarget === null;
+      const stopThreshold = alreadyStopped ? 46 : 36;
+      if (mobDist < stopThreshold) {
+        // In attack range — stop and face mob
+        this.moveTarget = null;
+        this.playerSprite.setFlipX(mobDx < 0);
+        const curAnim = this.playerSprite.anims?.currentAnim?.key;
+        if (curAnim !== 'player_attack' && curAnim !== 'player_idle') {
+          this.playerSprite.play('player_idle', true);
+        }
+        return;
+      }
+      // Out of range — chase
+      this.moveTarget = { x: this.mobTarget.sprite.x, y: this.mobTarget.sprite.y };
+    }
+
     if (!this.moveTarget) {
-      // No target — play idle if not already (but don't interrupt attack anim)
+      // No target — play idle if not already (but don't interrupt attack or gather anim)
       const curAnim = this.playerSprite.anims?.currentAnim?.key;
-      if (curAnim !== 'player_idle' && curAnim !== 'player_attack') {
+      if (curAnim !== 'player_idle' && curAnim !== 'player_attack' && curAnim !== 'player_gather') {
         this.playerSprite.play('player_idle', true);
       }
       return;
@@ -611,11 +727,16 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Play gather animation
-    this.playerSprite.play('player_gather', true);
+    // Face the resource and play gather animation (loops while gathering)
+    this.playerSprite.setFlipX(res.sprite.x < this.playerSprite.x);
+    const curAnim = this.playerSprite.anims?.currentAnim?.key;
+    if (curAnim !== 'player_gather') {
+      this.playerSprite.play('player_gather', true);
+    }
 
     // Apply one hit
     res.state.hitProgress++;
+    this.sfx.gatherHit();
 
     // Shake resource
     this.tweens.add({
@@ -634,7 +755,7 @@ export class GameScene extends Phaser.Scene {
         '#94a3b8',
       );
       // Schedule next hit
-      this.time.delayedCall(400, () => {
+      this.time.delayedCall(700, () => {
         if (this.gatherTarget === res && res.state.remaining > 0) {
           this.doGatherHit(res);
         }
@@ -643,6 +764,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     // Harvest complete — collect items
+    this.sfx.gatherComplete();
     res.state.hitProgress = 0;
     res.state.remaining--;
 
@@ -654,14 +776,14 @@ export class GameScene extends Phaser.Scene {
     if (res.state.remaining <= 0) {
       res.sprite.setAlpha(0.2);
       this.gatherTarget = null;
-      this.time.delayedCall(300, () => {
-        if (!this.moveTarget) this.playerSprite.play('player_idle', true);
-      });
+      this.playerSprite.play('player_idle', true);
     } else {
       // Auto-continue gathering next unit
-      this.time.delayedCall(400, () => {
+      this.time.delayedCall(700, () => {
         if (this.gatherTarget === res && res.state.remaining > 0) {
           this.doGatherHit(res);
+        } else if (!this.gatherTarget) {
+          this.playerSprite.play('player_idle', true);
         }
       });
     }
@@ -723,14 +845,15 @@ export class GameScene extends Phaser.Scene {
 
   private showMoveMarker(x: number, y: number, isGather: boolean): void {
     this.moveMarker.clear();
+    this.moveMarker.setPosition(x, y);
     if (isGather) {
-      // Yellow ring for gather
+      // Yellow ring for gather/target
       this.moveMarker.lineStyle(1, 0xf0c040, 0.8);
-      this.moveMarker.strokeCircle(x, y, 6);
+      this.moveMarker.strokeCircle(0, 0, 6);
     } else {
       // White dot for movement
       this.moveMarker.fillStyle(0xffffff, 0.5);
-      this.moveMarker.fillCircle(x, y, 3);
+      this.moveMarker.fillCircle(0, 0, 3);
     }
     this.moveMarker.setVisible(true);
   }
@@ -939,7 +1062,7 @@ export class GameScene extends Phaser.Scene {
               id: `res-${cx}-${row}-${col}`,
               itemId: tile.resourceNodeId,
               position: { x: absSx, y: absSy - 8 },
-              remaining: 3 + Math.floor(Math.random() * 5),
+              remaining: 1 + Math.floor(Math.random() * 3),
               hitProgress: 0,
             },
             sprite: resSprite,
@@ -1137,6 +1260,9 @@ export class GameScene extends Phaser.Scene {
       const state = createMobState(mobDef.id, sx, sy);
       if (!state) continue;
       const sprite = createMobSprite(this, sx, sy, mobDef);
+      if (mobDef.id === 'cave_bat') {
+        sprite.play('bat_fly');
+      }
       this.mobs.push({ state, sprite });
     }
   }
@@ -1158,11 +1284,11 @@ export class GameScene extends Phaser.Scene {
       if (distToPlayer > 600) continue;
 
       // Update AI
-      mob.state = MobAI.update(mob.state, playerPos, def.category);
+      mob.state = MobAI.update(mob.state, playerPos, def.category, delta);
 
       // Movement
       const dir = MobAI.getMovementDirection(mob.state, playerPos);
-      const speed = mob.state.stats.speed * (delta / 1000);
+      const speed = mob.state.stats.speed * dir.speedMult * (delta / 1000);
       const isMoving = dir.dx !== 0 || dir.dy !== 0;
 
       // When attacking, maintain offset from player instead of overlapping
@@ -1190,11 +1316,13 @@ export class GameScene extends Phaser.Scene {
       else if (dir.dx > 0.1) mob.sprite.setFlipX(false);
 
       // Bob animation when moving (squash/stretch using scaleY)
+      // Use mob id hash for phase offset instead of position (avoids jitter when moving)
+      const phaseOffset = mob.state.id.charCodeAt(4) * 0.7;
       if (isMoving && mob.state.aiState !== 'attack') {
-        const bobPhase = Math.sin(this.time.now * 0.01 + mob.state.position.x) * 0.08;
+        const bobPhase = Math.sin(this.time.now * 0.01 + phaseOffset) * 0.08;
         mob.sprite.setScale(1 - bobPhase * 0.5, 1 + bobPhase);
       } else {
-        const breathe = Math.sin(this.time.now * 0.003 + mob.state.position.x) * 0.03;
+        const breathe = Math.sin(this.time.now * 0.003 + phaseOffset) * 0.03;
         mob.sprite.setScale(1, 1 + breathe);
       }
 
@@ -1206,10 +1334,18 @@ export class GameScene extends Phaser.Scene {
 
       // Mob auto-attack player
       if (mob.state.aiState === 'attack') {
+        // Combat interrupts gathering
+        if (this.gatherTarget) {
+          this.gatherTarget = null;
+          if (this.playerSprite.anims?.currentAnim?.key === 'player_gather') {
+            this.playerSprite.play('player_idle', true);
+          }
+        }
         const now = this.time.now;
         if (this.combatSystem.canAttack(mob.state.stats.attackSpeed, mob.state.lastAttackTime, now)) {
           this.combatSystem.applyDamage(mob.state.id, 'player', mob.state.stats, this.player.stats);
           mob.state.lastAttackTime = now;
+          this.sfx.playerHurt();
           // Flash mob red on hit
           mob.sprite.setTint(0xff4444);
           this.time.delayedCall(100, () => mob.sprite.clearTint());
@@ -1228,6 +1364,7 @@ export class GameScene extends Phaser.Scene {
         if (this.combatSystem.canAttack(this.player.stats.attackSpeed, this.lastPlayerAttack, now)) {
           const dmg = this.combatSystem.applyDamage('player', mob.state.id, this.player.stats, mob.state.stats);
           this.lastPlayerAttack = now;
+          this.sfx.playerHit();
 
           // Flip sprite to face the mob and play attack animation
           const atkDx = mob.sprite.x - this.playerSprite.x;
@@ -1247,6 +1384,11 @@ export class GameScene extends Phaser.Scene {
             if (mob.state.stats.health > 0) mob.sprite.clearTint();
           });
           if (mob.state.stats.health <= 0) {
+            this.sfx.mobDeath();
+            if (this.mobTarget?.state === mob.state) {
+              this.mobTarget = null;
+              this.moveTarget = null;
+            }
             mob.sprite.setAlpha(0.3);
             mob.sprite.clearTint();
             // Remove HP bar
@@ -1275,6 +1417,11 @@ export class GameScene extends Phaser.Scene {
     if (dist === 0) return;
     this.playerSprite.x += (dx / dist) * 80;
     this.playerSprite.y += (dy / dist) * 80;
+  }
+
+  /** Unified check: is the pointer over any UI element that should block world interaction? */
+  private isInputBlockedByUI(): boolean {
+    return this.pointerOverUI || this.uiManager.isOpen() || this.buildMenuOpen;
   }
 
   getNearbyStation(): CraftingStation {
@@ -1378,6 +1525,7 @@ export class GameScene extends Phaser.Scene {
       this.buildMenuContainer = null;
     }
     this.buildMenuOpen = false;
+    this.pointerOverUI = false;
     this.inputConsumed = true;
   }
 

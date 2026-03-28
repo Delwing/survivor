@@ -13,7 +13,7 @@ export function createResourceNode(itemId: string, x: number, y: number): Resour
   return {
     id: `res-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     itemId, position: { x, y },
-    remaining: 3 + Math.floor(Math.random() * 5),
+    remaining: 1 + Math.floor(Math.random() * 3),
     hitProgress: 0,
   };
 }

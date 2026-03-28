@@ -5,7 +5,7 @@ import { createPlayerAnimations } from '@/graphics/TextureGenerator';
 export function createPlayerState(): PlayerState {
   return {
     id: 'player',
-    stats: { health: 100, maxHealth: 100, attack: 5, defense: 0, speed: 120, attackSpeed: 1, hunger: 100, maxHunger: 100 },
+    stats: { health: 100, maxHealth: 100, attack: 3, defense: 0, speed: 120, attackSpeed: 1, hunger: 100, maxHunger: 100 },
     position: { x: 0, y: 0 },
     equipment: { weapon: null, armor: null, ability1: null, ability2: null },
     inventory: [],

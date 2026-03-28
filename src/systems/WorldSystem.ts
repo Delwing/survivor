@@ -61,11 +61,25 @@ export class WorldSystem {
   }
 
   private assignBiome(cx: number, cy: number, elevation: number, moisture: number, heat: number, corruption: number): string {
+    // Distance from world center in chunks — gates harder biomes behind exploration
+    const dist = Math.sqrt(cx * cx + cy * cy);
+
+    // Spawn chunk is always forest
     if (cx === 0 && cy === 0) return 'forest';
-    if (corruption > 0.85) return 'corrupted_lands';
-    if (elevation > 0.6 && moisture < 0.3 && heat > 0.7) return 'volcanic_wastes';
-    if (elevation > 0.6 && moisture < 0.4) return 'rocky_highlands';
-    if (elevation < 0.3 && moisture > 0.6) return 'swamp';
+
+    // T5: Corrupted — only 20+ chunks out
+    if (dist >= 20 && corruption > 0.85) return 'corrupted_lands';
+
+    // T4: Volcanic — only 14+ chunks out
+    if (dist >= 14 && elevation > 0.6 && moisture < 0.3 && heat > 0.7) return 'volcanic_wastes';
+
+    // T3: Swamp — only 8+ chunks out
+    if (dist >= 8 && elevation < 0.3 && moisture > 0.6) return 'swamp';
+
+    // T2: Rocky Highlands — only 4+ chunks out
+    if (dist >= 4 && elevation > 0.6 && moisture < 0.4) return 'rocky_highlands';
+
+    // Everything else is forest
     return 'forest';
   }
 

@@ -11,6 +11,7 @@ export function createMobState(typeId: string, x: number, y: number): MobState |
     position: { x, y }, aiState: 'idle', homePosition: { x, y },
     target: null, leashDistance: def.leashDistance, alertRange: def.alertRange,
     attackRange: def.attackRange, lastAttackTime: 0,
+    wanderTarget: null, wanderCooldown: Math.random() * 3000,
   };
 }
 
