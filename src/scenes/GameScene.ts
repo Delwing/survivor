@@ -33,9 +33,10 @@ import { MusicSystem } from '@/audio/MusicSystem';
 
 const GATHER_RANGE = 40; // must be this close to gather
 
-// A rendered chunk: one graphics object for tiles + individual sprites for resources
+// A rendered chunk: one baked sprite for tiles + individual sprites for resources
 interface RenderedChunk {
-  tileGraphics: Phaser.GameObjects.Graphics;
+  tileSprite: Phaser.GameObjects.Sprite;
+  textureKey: string;
   resourceSprites: Phaser.GameObjects.Sprite[];
 }
 
@@ -96,6 +97,7 @@ export class GameScene extends Phaser.Scene {
   inputConsumed = false;
 
   private musicSystem!: MusicSystem;
+  private fpsText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: 'Game' }); }
 
@@ -283,6 +285,14 @@ export class GameScene extends Phaser.Scene {
       strokeThickness: 1,
     }).setDepth(9999).setVisible(false).setScrollFactor(0);
 
+    // FPS counter (top-right corner)
+    this.fpsText = this.add.text(this.cameras.main.width - 4, 4, '', {
+      fontSize: '10px',
+      color: '#88ff88',
+      stroke: '#000000',
+      strokeThickness: 2,
+    }).setOrigin(1, 0).setDepth(10000).setScrollFactor(0);
+
     // Clear old HP bars
     this.mobHpBars = new Map();
 
@@ -430,6 +440,8 @@ export class GameScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     this.inputConsumed = false;
+    // FPS counter
+    this.fpsText.setText(`${Math.round(this.game.loop.actualFps)} FPS`);
     this.updateHunger(delta, time);
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
@@ -526,8 +538,9 @@ export class GameScene extends Phaser.Scene {
 
   private updatePlayerMovement(delta: number): void {
     if (!this.moveTarget) {
-      // No target — play idle if not already
-      if (this.playerSprite.anims?.currentAnim?.key !== 'player_idle') {
+      // No target — play idle if not already (but don't interrupt attack anim)
+      const curAnim = this.playerSprite.anims?.currentAnim?.key;
+      if (curAnim !== 'player_idle' && curAnim !== 'player_attack') {
         this.playerSprite.play('player_idle', true);
       }
       return;
@@ -752,7 +765,8 @@ export class GameScene extends Phaser.Scene {
     // Remove old chunks
     for (const [key, rendered] of this.renderedChunks) {
       if (!neededKeys.has(key)) {
-        rendered.tileGraphics.destroy();
+        rendered.tileSprite.destroy();
+        this.textures.remove(rendered.textureKey);
         rendered.resourceSprites.forEach(s => s.destroy());
         this.renderedChunks.delete(key);
       }
@@ -825,36 +839,50 @@ export class GameScene extends Phaser.Scene {
   }
 
   /**
-   * Draw all tiles in a chunk as a single Graphics object.
-   * Each tile is a full filled diamond with edge shading and detail variety.
+   * Draw all tiles in a chunk, bake to a static texture, and display as a single sprite.
+   * This avoids Phaser re-executing thousands of Graphics draw calls every frame.
    */
   private renderChunk(cx: number, cy: number): void {
     const chunk = this.worldSystem.getChunk(cx, cy);
-    const gfx = this.add.graphics();
-    gfx.setDepth(-10000);
-
-    const resourceSprites: Phaser.GameObjects.Sprite[] = [];
     const hw = TILE_WIDTH / 2;
     const hh = TILE_HEIGHT / 2;
+    const pad = 4; // small padding for detail overflow (grass blades etc.)
+
+    // Compute the screen-space bounding box of this chunk's isometric tiles.
+    // sx = (absX - absY) * 24,  sy = (absX + absY) * 12
+    const ax0 = cx * CHUNK_SIZE, ay0 = cy * CHUNK_SIZE;
+    const ax1 = ax0 + CHUNK_SIZE - 1, ay1 = ay0 + CHUNK_SIZE - 1;
+    const originX = (ax0 - ay1) * (TILE_WIDTH / 2) - hw - pad;
+    const originY = (ax0 + ay0) * (TILE_HEIGHT / 2) - hh - pad;
+    const maxX = (ax1 - ay0) * (TILE_WIDTH / 2) + hw + pad;
+    const maxY = (ax1 + ay1) * (TILE_HEIGHT / 2) + hh + pad;
+    const texW = maxX - originX;
+    const texH = maxY - originY;
+
+    // Draw on an off-screen Graphics using local coordinates (offset by originX/Y)
+    const gfx = this.make.graphics({});
+    const resourceSprites: Phaser.GameObjects.Sprite[] = [];
 
     for (let row = 0; row < CHUNK_SIZE; row++) {
       for (let col = 0; col < CHUNK_SIZE; col++) {
         const tile = chunk.tiles[row][col];
-        const absX = cx * CHUNK_SIZE + col;
-        const absY = cy * CHUNK_SIZE + row;
+        const absX = ax0 + col;
+        const absY = ay0 + row;
         const worldX = absX * TILE_WIDTH / 2;
         const worldY = absY * TILE_HEIGHT;
-        const { sx, sy } = worldToScreen(worldX, worldY);
+        const { sx: absSx, sy: absSy } = worldToScreen(worldX, worldY);
+        // Local coordinates for the baked texture
+        const sx = absSx - originX;
+        const sy = absSy - originY;
 
         const ground = GameScene.BIOME_GROUNDS[tile.biomeId] ?? GameScene.BIOME_GROUNDS.forest;
         const h = GameScene.tileHash(absX, absY);
         const h2 = GameScene.tileHash(absX + 997, absY + 1013);
         const h3 = GameScene.tileHash(absX + 2003, absY + 2017);
 
-        // Pick base color from palette using hash
         const baseColor = ground.bases[Math.floor(h * ground.bases.length)];
 
-        // Full diamond fill — single solid color
+        // Full diamond fill
         gfx.fillStyle(baseColor);
         gfx.beginPath();
         gfx.moveTo(sx, sy - hh);
@@ -864,43 +892,53 @@ export class GameScene extends Phaser.Scene {
         gfx.closePath();
         gfx.fillPath();
 
-        // --- Sub-region texture: scattered single-pixel dots for organic feel ---
+        // Sub-region texture
         const h4 = GameScene.tileHash(absX + 3001, absY + 3011);
         const h5 = GameScene.tileHash(absX + 4007, absY + 4003);
-        // Scatter 3-5 single-pixel dots in varied shades across the diamond
-        gfx.fillStyle(ground.subA, 0.35);
-        gfx.fillRect(sx + (h - 0.5) * hw * 0.5, sy + (h3 - 0.5) * hh * 0.4, 1, 1);
-        gfx.fillRect(sx + (h2 - 0.5) * hw * 0.6, sy + (h4 - 0.5) * hh * 0.5, 1, 1);
-        gfx.fillStyle(ground.subB, 0.25);
-        gfx.fillRect(sx + (h4 - 0.5) * hw * 0.4, sy + (h - 0.5) * hh * 0.3, 1, 1);
-        if (h5 < 0.5) {
-          gfx.fillRect(sx + (h5 - 0.5) * hw * 0.7, sy + (h2 - 0.5) * hh * 0.4, 1, 1);
-        }
 
-        // Thin bottom edge for subtle depth separation
+        const q1x = hw * (0.25 + h * 0.35);        const q1y = -hh * (0.15 + h2 * 0.4);
+        const q2x = hw * (0.15 + h3 * 0.35);       const q2y = hh * (0.2 + h4 * 0.35);
+        const q3x = -hw * (0.2 + h5 * 0.35);       const q3y = hh * (0.15 + h * 0.35);
+        const q4x = -hw * (0.25 + h4 * 0.3);       const q4y = -hh * (0.2 + h3 * 0.3);
+        const ccx = (h2 - 0.5) * hw * 0.25;        const ccy = (h5 - 0.5) * hh * 0.25;
+
+        gfx.fillStyle(ground.subA, 0.3);
+        gfx.fillRect(sx + q1x, sy + q1y, 2, 1);
+        gfx.fillRect(sx + q2x, sy + q2y, 1, 1);
+        gfx.fillRect(sx + q3x, sy + q3y, 1, 2);
+        gfx.fillRect(sx + q4x, sy + q4y, 2, 1);
+
+        gfx.fillStyle(ground.subB, 0.22);
+        gfx.fillRect(sx + q2x + 2, sy + q2y - 1, 2, 1);
+        gfx.fillRect(sx + q4x - 1, sy + q4y + 1, 1, 1);
+        gfx.fillRect(sx + ccx, sy + ccy, 1, 1);
+
+        const altBase = ground.bases[Math.floor(h3 * ground.bases.length)];
+        gfx.fillStyle(altBase, 0.35);
+        gfx.fillRect(sx + q1x - 3, sy + q1y + 1, 1, 1);
+        gfx.fillRect(sx + q3x + 2, sy + q3y - 1, 1, 1);
+
         gfx.lineStyle(1, ground.edge, 0.45);
         gfx.lineBetween(sx + hw, sy, sx, sy + hh);
         gfx.lineBetween(sx, sy + hh, sx - hw, sy);
 
-        // Per-biome detail decorations on ~55% of tiles
-        if (h2 < 0.55) {
-          this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, ground.details, h, h2, h3, h4, h5);
-        }
+        // Biome details
+        this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, ground.details, h, h2, h3, h4, h5);
 
-        // Resource node sprite
+        // Resource node sprite (uses absolute world positions, not local)
         if (tile.resourceNodeId) {
           const resKey = `res_${tile.resourceNodeId}`;
           const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
-          const resSprite = this.add.sprite(sx, sy - 8, resUseKey);
+          const resSprite = this.add.sprite(absSx, absSy - 8, resUseKey);
           resSprite.setOrigin(0.5, 1);
-          resSprite.setDepth(sy);
+          resSprite.setDepth(absSy);
           resourceSprites.push(resSprite);
 
           this.resourceNodes.push({
             state: {
               id: `res-${cx}-${row}-${col}`,
               itemId: tile.resourceNodeId,
-              position: { x: sx, y: sy - 8 },
+              position: { x: absSx, y: absSy - 8 },
               remaining: 3 + Math.floor(Math.random() * 5),
               hitProgress: 0,
             },
@@ -910,10 +948,20 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.renderedChunks.set(chunkKey(cx, cy), { tileGraphics: gfx, resourceSprites });
+    // Bake Graphics to a static texture, then display as a single sprite
+    const texKey = `chunk_${cx}_${cy}`;
+    gfx.generateTexture(texKey, texW, texH);
+    gfx.destroy();
+
+    const tileSprite = this.add.sprite(originX + texW / 2, originY + texH / 2, texKey);
+    tileSprite.setDepth(-10000);
+
+    this.renderedChunks.set(chunkKey(cx, cy), { tileSprite, textureKey: texKey, resourceSprites });
   }
 
-  /** Draw small detail marks on tiles — only 1px dots and diagonal lines */
+  /** Draw scattered detail marks on tiles — dots, short lines, and small rectangles.
+   *  Uses quadrant-based placement so details cover the full diamond area.
+   *  Every tile gets base details; h2 < 0.55 tiles get bonus extras. */
   private drawTileDetails(
     gfx: Phaser.GameObjects.Graphics,
     sx: number, sy: number,
@@ -922,93 +970,144 @@ export class GameScene extends Phaser.Scene {
     detailColors: number[],
     h: number, h2: number, h3: number, h4: number, h5: number,
   ): void {
-    // Positions kept well inside diamond
-    const dx1 = (h - 0.5) * hw * 0.45;
-    const dy1 = (h3 - 0.5) * hh * 0.35;
-    const dx2 = (h4 - 0.5) * hw * 0.4;
-    const dy2 = (h5 - 0.5) * hh * 0.3;
+    // 5 anchor points spread across the diamond via quadrant placement.
+    // Diamond rule: |x|/hw + |y|/hh <= 1. Each anchor sits at 50-85% radius.
+    const tr_x = hw * (0.3 + h * 0.4);       const tr_y = -hh * (0.2 + h2 * 0.45);
+    const br_x = hw * (0.2 + h3 * 0.4);      const br_y = hh * (0.25 + h4 * 0.4);
+    const bl_x = -hw * (0.25 + h5 * 0.4);    const bl_y = hh * (0.2 + h * 0.4);
+    const tl_x = -hw * (0.3 + h4 * 0.35);    const tl_y = -hh * (0.25 + h3 * 0.35);
+    const cn_x = (h2 - 0.5) * hw * 0.3;      const cn_y = (h5 - 0.5) * hh * 0.3;
+    // Mid-points between quadrants for extra fill
+    const mt_x = (tr_x + tl_x) * 0.5;        const mt_y = (tr_y + tl_y) * 0.5;  // mid-top
+    const mb_x = (br_x + bl_x) * 0.5;        const mb_y = (br_y + bl_y) * 0.5;  // mid-bottom
+    const rich = h2 < 0.55; // ~55% of tiles get richer detail
 
     switch (biome) {
       case 'forest': {
-        // Grass blades — short diagonal lines
+        // Grass blades — always 2 tufts in opposite quadrants
         gfx.lineStyle(1, detailColors[h2 < 0.3 ? 0 : 1], 0.5);
-        gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 - 1, sy + dy1 - 2);
-        gfx.lineBetween(sx + dx1 + 2, sy + dy1, sx + dx1 + 3, sy + dy1 - 2);
-        // Leaf dot
-        if (h4 < 0.2) {
-          gfx.fillStyle(h5 < 0.5 ? detailColors[2] : detailColors[3], 0.7);
-          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
-        }
-        // Dirt dot
-        if (h5 < 0.25) {
-          gfx.fillStyle(detailColors[4], 0.4);
-          gfx.fillRect(sx + dx1 + 1, sy + dy1 + 1, 1, 1);
+        gfx.lineBetween(sx + tr_x, sy + tr_y, sx + tr_x - 1, sy + tr_y - 2);
+        gfx.lineBetween(sx + tr_x + 2, sy + tr_y, sx + tr_x + 3, sy + tr_y - 2);
+        gfx.lineStyle(1, detailColors[0], 0.4);
+        gfx.lineBetween(sx + bl_x, sy + bl_y, sx + bl_x - 1, sy + bl_y - 2);
+        gfx.lineBetween(sx + bl_x + 2, sy + bl_y, sx + bl_x + 1, sy + bl_y - 2);
+        // Always a leaf dot and dirt patch
+        gfx.fillStyle(detailColors[2], 0.55);
+        gfx.fillRect(sx + br_x, sy + br_y, 1, 1);
+        gfx.fillStyle(detailColors[4], 0.35);
+        gfx.fillRect(sx + cn_x, sy + cn_y, 2, 1);
+        // Rich tiles: extra grass tuft + leaf + dirt
+        if (rich) {
+          gfx.lineStyle(1, detailColors[1], 0.45);
+          gfx.lineBetween(sx + tl_x, sy + tl_y, sx + tl_x + 1, sy + tl_y - 2);
+          gfx.lineBetween(sx + mt_x, sy + mt_y, sx + mt_x - 1, sy + mt_y - 2);
+          gfx.fillStyle(detailColors[3], 0.55);
+          gfx.fillRect(sx + tl_x + 2, sy + tl_y + 1, 1, 1);
+          gfx.fillRect(sx + mb_x, sy + mb_y, 1, 1);
+          gfx.fillStyle(detailColors[4], 0.3);
+          gfx.fillRect(sx + br_x - 2, sy + br_y - 1, 1, 1);
         }
         break;
       }
       case 'rocky_highlands': {
-        // Gravel dots
+        // Gravel dots — always in all 4 quadrants + center
         gfx.fillStyle(detailColors[1], 0.4);
-        gfx.fillRect(sx + dx1, sy + dy1, 1, 1);
-        gfx.fillRect(sx + dx2 + 1, sy + dy2 - 1, 1, 1);
-        if (h3 < 0.4) {
-          gfx.fillRect(sx + dx2 - 1, sy + dy2 + 1, 1, 1);
-        }
-        // Crack — diagonal line following diamond angle
-        if (h4 < 0.3) {
-          gfx.lineStyle(1, detailColors[5], 0.45);
-          gfx.lineBetween(sx + dx1, sy + dy1, sx + dx1 + 4, sy + dy1 + 2);
+        gfx.fillRect(sx + tr_x, sy + tr_y, 1, 1);
+        gfx.fillRect(sx + bl_x, sy + bl_y, 1, 1);
+        gfx.fillStyle(detailColors[3], 0.35);
+        gfx.fillRect(sx + br_x, sy + br_y, 1, 1);
+        gfx.fillRect(sx + tl_x, sy + tl_y, 1, 1);
+        gfx.fillRect(sx + cn_x, sy + cn_y, 1, 1);
+        // Always one crack
+        gfx.lineStyle(1, detailColors[5], 0.4);
+        gfx.lineBetween(sx + tr_x, sy + tr_y, sx + tr_x + 4, sy + tr_y + 2);
+        // Shadow rectangle
+        gfx.fillStyle(detailColors[2], 0.25);
+        gfx.fillRect(sx + br_x - 1, sy + br_y, 2, 1);
+        // Rich: extra gravel, second crack, highlight
+        if (rich) {
+          gfx.fillStyle(detailColors[0], 0.35);
+          gfx.fillRect(sx + mt_x, sy + mt_y, 1, 1);
+          gfx.fillRect(sx + mb_x, sy + mb_y, 1, 1);
+          gfx.lineStyle(1, detailColors[2], 0.35);
+          gfx.lineBetween(sx + bl_x, sy + bl_y, sx + bl_x + 3, sy + bl_y + 1);
+          gfx.fillStyle(detailColors[3], 0.2);
+          gfx.fillRect(sx + tl_x + 2, sy + tl_y + 1, 2, 1);
         }
         break;
       }
       case 'swamp': {
-        // Water dots (dark)
+        // Water dots — always in all 4 quadrants
         gfx.fillStyle(detailColors[0], 0.45);
-        gfx.fillRect(sx + dx1, sy + dy1, 1, 1);
-        gfx.fillRect(sx + dx1 + 2, sy + dy1, 1, 1);
+        gfx.fillRect(sx + tr_x, sy + tr_y, 1, 1);
+        gfx.fillRect(sx + bl_x, sy + bl_y, 2, 1);
+        gfx.fillStyle(detailColors[3], 0.4);
+        gfx.fillRect(sx + tl_x, sy + tl_y, 1, 1);
+        gfx.fillRect(sx + br_x, sy + br_y, 1, 1);
+        // Mud patch always
+        gfx.fillStyle(detailColors[4], 0.4);
+        gfx.fillRect(sx + cn_x, sy + cn_y, 2, 1);
         // Bubble dot
-        if (h3 < 0.25) {
-          gfx.fillStyle(0x8ecece, 0.5);
-          gfx.fillRect(sx + dx1 + 1, sy + dy1 - 1, 1, 1);
-        }
-        // Mud dot
-        if (h4 < 0.3) {
-          gfx.fillStyle(detailColors[4], 0.4);
-          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
+        gfx.fillStyle(0x8ecece, 0.45);
+        gfx.fillRect(sx + tr_x + 1, sy + tr_y - 1, 1, 1);
+        // Rich: extra water, bubbles, moss line
+        if (rich) {
+          gfx.fillStyle(detailColors[0], 0.35);
+          gfx.fillRect(sx + mt_x, sy + mt_y, 1, 1);
+          gfx.fillRect(sx + mb_x, sy + mb_y, 2, 1);
+          gfx.fillStyle(0x8ecece, 0.4);
+          gfx.fillRect(sx + bl_x + 1, sy + bl_y - 1, 1, 1);
+          gfx.lineStyle(1, detailColors[1], 0.4);
+          gfx.lineBetween(sx + br_x, sy + br_y, sx + br_x + 3, sy + br_y + 1);
         }
         break;
       }
       case 'volcanic_wastes': {
-        // Lava vein — diagonal line
+        // Lava vein always
         gfx.lineStyle(1, detailColors[0], 0.5);
-        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1 + 2, sy + dy1 + 1);
-        // Ember dots
-        if (h4 < 0.35) {
-          gfx.fillStyle(detailColors[h5 < 0.5 ? 2 : 3], 0.7);
-          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
-        }
-        // Cooled crack
-        if (h5 < 0.3) {
-          gfx.lineStyle(1, detailColors[5], 0.5);
-          gfx.lineBetween(sx + dx1 + 1, sy + dy1 + 2, sx + dx1 + 4, sy + dy1 + 3);
+        gfx.lineBetween(sx + tr_x - 2, sy + tr_y, sx + tr_x + 3, sy + tr_y + 1);
+        // Ember dots always in 3 quadrants
+        gfx.fillStyle(detailColors[2], 0.65);
+        gfx.fillRect(sx + br_x, sy + br_y, 1, 1);
+        gfx.fillStyle(detailColors[3], 0.55);
+        gfx.fillRect(sx + tl_x, sy + tl_y, 1, 1);
+        gfx.fillRect(sx + cn_x, sy + cn_y, 1, 1);
+        // Ash patch always
+        gfx.fillStyle(detailColors[4], 0.3);
+        gfx.fillRect(sx + bl_x, sy + bl_y, 2, 1);
+        // Rich: second vein, more embers, cooled crack
+        if (rich) {
+          gfx.lineStyle(1, detailColors[1], 0.45);
+          gfx.lineBetween(sx + bl_x - 1, sy + bl_y, sx + bl_x + 3, sy + bl_y + 1);
+          gfx.fillStyle(detailColors[2], 0.6);
+          gfx.fillRect(sx + mt_x, sy + mt_y, 1, 1);
+          gfx.fillRect(sx + mb_x, sy + mb_y, 1, 1);
+          gfx.lineStyle(1, detailColors[5], 0.45);
+          gfx.lineBetween(sx + br_x, sy + br_y, sx + br_x + 4, sy + br_y + 2);
         }
         break;
       }
       case 'corrupted_lands': {
-        // Energy vein — diagonal line
+        // Energy vein always
         gfx.lineStyle(1, detailColors[0], 0.5);
-        gfx.lineBetween(sx + dx1 - 2, sy + dy1, sx + dx1 + 3, sy + dy1 + 1);
-        // Glowing rune dots — bright magenta on ~35% of detail tiles
-        if (h4 < 0.35) {
-          gfx.fillStyle(detailColors[2], 0.85);
-          gfx.fillRect(sx + dx1,     sy + dy1 - 2, 1, 1);
-          gfx.fillRect(sx + dx2 + 2, sy + dy2 + 1, 1, 1);
-        }
-        // Void dots
-        if (h5 < 0.25) {
-          gfx.fillStyle(detailColors[4], 0.6);
-          gfx.fillRect(sx + dx2, sy + dy2, 1, 1);
-          gfx.fillRect(sx + dx2 + 1, sy + dy2 + 1, 1, 1);
+        gfx.lineBetween(sx + tr_x - 2, sy + tr_y, sx + tr_x + 3, sy + tr_y + 1);
+        // Rune dots always in 3 quadrants
+        gfx.fillStyle(detailColors[2], 0.8);
+        gfx.fillRect(sx + bl_x + 2, sy + bl_y + 1, 1, 1);
+        gfx.fillRect(sx + tl_x, sy + tl_y, 1, 1);
+        // Void patches always
+        gfx.fillStyle(detailColors[4], 0.5);
+        gfx.fillRect(sx + br_x, sy + br_y, 2, 1);
+        gfx.fillRect(sx + cn_x, sy + cn_y, 1, 1);
+        // Rich: second vein, more rune dots, corruption speckle
+        if (rich) {
+          gfx.lineStyle(1, detailColors[1], 0.45);
+          gfx.lineBetween(sx + bl_x - 3, sy + bl_y, sx + bl_x + 2, sy + bl_y + 1);
+          gfx.fillStyle(detailColors[2], 0.75);
+          gfx.fillRect(sx + tr_x, sy + tr_y - 2, 1, 1);
+          gfx.fillRect(sx + mt_x, sy + mt_y, 1, 1);
+          gfx.fillStyle(detailColors[5], 0.35);
+          gfx.fillRect(sx + mb_x, sy + mb_y, 1, 2);
         }
         break;
       }
@@ -1129,6 +1228,18 @@ export class GameScene extends Phaser.Scene {
         if (this.combatSystem.canAttack(this.player.stats.attackSpeed, this.lastPlayerAttack, now)) {
           const dmg = this.combatSystem.applyDamage('player', mob.state.id, this.player.stats, mob.state.stats);
           this.lastPlayerAttack = now;
+
+          // Flip sprite to face the mob and play attack animation
+          const atkDx = mob.sprite.x - this.playerSprite.x;
+          this.playerSprite.setFlipX(atkDx < 0);
+          this.playerSprite.play('player_attack', true);
+          this.playerSprite.once('animationcomplete', () => {
+            const curAnim = this.playerSprite.anims?.currentAnim?.key;
+            if (curAnim === 'player_attack') {
+              this.playerSprite.play(this.moveTarget ? 'player_walk' : 'player_idle', true);
+            }
+          });
+
           // Show damage number
           this.showFloatingText(mob.sprite.x, mob.sprite.y - 20, `-${dmg}`, '#ff6666');
           mob.sprite.setTint(0xff4444);

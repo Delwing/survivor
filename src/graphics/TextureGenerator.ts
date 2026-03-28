@@ -41,10 +41,23 @@ export function createPlayerAnimations(scene: Phaser.Scene): void {
     key: 'player_gather',
     frames: [
       { key: 'player_f6' },
+      { key: 'player_f12' },
       { key: 'player_f7' },
+      { key: 'player_f13' },
     ],
     frameRate: 4,
     repeat: -1,
+  });
+  scene.anims.create({
+    key: 'player_attack',
+    frames: [
+      { key: 'player_f8' },
+      { key: 'player_f9' },
+      { key: 'player_f10' },
+      { key: 'player_f11' },
+    ],
+    frameRate: 10,
+    repeat: 0,
   });
 }
 
@@ -198,7 +211,7 @@ function drawIsoDiamond(scene: Phaser.Scene, key: string, fill: string, highligh
  *   player_f6, player_f7: gather
  */
 function generatePlayerSpritesheet(scene: Phaser.Scene): void {
-  const fw = 16, fh = 24;
+  const fw = 16, fh = 26; // 26px tall to give headroom for upward bob
   const frameDefs: [number, PlayerFrameOpts][] = [
     [0, { legOffset: 0, bodyBob: 0, armMode: 'normal' }],
     [1, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
@@ -208,12 +221,20 @@ function generatePlayerSpritesheet(scene: Phaser.Scene): void {
     [5, { legOffset: 0, bodyBob: -1, armMode: 'normal' }],
     [6, { legOffset: 0, bodyBob: 1, armMode: 'gather' }],
     [7, { legOffset: 0, bodyBob: 0, armMode: 'gather_up' }],
+    // Attack frames (f8-f11)
+    [8, { legOffset: 0, bodyBob: -1, armMode: 'attack_windup' }],
+    [9, { legOffset: 1, bodyBob: 0, armMode: 'attack_swing' }],
+    [10, { legOffset: 0, bodyBob: 1, armMode: 'attack_impact' }],
+    [11, { legOffset: 0, bodyBob: 0, armMode: 'attack_recover' }],
+    // Extra gather frames (f12-f13)
+    [12, { legOffset: 0, bodyBob: 2, armMode: 'gather_deep' }],
+    [13, { legOffset: 0, bodyBob: -1, armMode: 'gather_pull' }],
   ];
 
   for (const [idx, opts] of frameDefs) {
     const key = `player_f${idx}`;
     const ctx = makeCanvas(scene, key, fw, fh);
-    drawPlayerFrame(ctx, 0, opts); // always draw at offset 0 (each frame is its own canvas)
+    drawPlayerFrame(ctx, 0, opts);
     drawFrameOutline(ctx, 0, 0, fw, fh, P.outline);
     finalize(scene, key);
   }
@@ -228,91 +249,136 @@ function generatePlayerSpritesheet(scene: Phaser.Scene): void {
 interface PlayerFrameOpts {
   legOffset: number;    // -1 = left forward, 0 = neutral, 1 = right forward
   bodyBob: number;      // vertical offset for body/head (-1 = up, 1 = down)
-  armMode: 'normal' | 'swing_left' | 'swing_right' | 'gather' | 'gather_up';
+  armMode: 'normal' | 'swing_left' | 'swing_right' | 'gather' | 'gather_up' | 'gather_deep' | 'gather_pull' | 'attack_windup' | 'attack_swing' | 'attack_impact' | 'attack_recover';
 }
 
 function drawPlayerFrame(ctx: CanvasRenderingContext2D, frameIdx: number, opts: PlayerFrameOpts): void {
   const fw = 16;
-  const fh = 24;
+  const fh = 26;
   const ox = frameIdx * fw; // x offset for this frame
   const by = opts.bodyBob;  // body vertical shift
+  const yo = 2; // vertical offset — gives headroom for upward bob so hair isn't clipped
 
   // Shadow (wider ellipse under feet)
-  rect(ctx, ox + 3, 21, 10, 2, '#00000040');
+  rect(ctx, ox + 3, yo + 21, 10, 2, '#00000040');
 
   // Left leg
   const llOff = opts.legOffset === -1 ? -1 : (opts.legOffset === 1 ? 1 : 0);
-  rect(ctx, ox + 4, 16 + llOff, 3, 3, P.brownLight);   // thigh
-  rect(ctx, ox + 4, 19 + llOff, 3, 2, P.brownDark);    // boot
+  rect(ctx, ox + 4, yo + 16 + llOff, 3, 3, P.brownLight);   // thigh
+  rect(ctx, ox + 4, yo + 19 + llOff, 3, 2, P.brownDark);    // boot
 
   // Right leg
   const rlOff = opts.legOffset === 1 ? -1 : (opts.legOffset === -1 ? 1 : 0);
-  rect(ctx, ox + 9, 16 + rlOff, 3, 3, P.brownLight);
-  rect(ctx, ox + 9, 19 + rlOff, 3, 2, P.brownDark);
+  rect(ctx, ox + 9, yo + 16 + rlOff, 3, 3, P.brownLight);
+  rect(ctx, ox + 9, yo + 19 + rlOff, 3, 2, P.brownDark);
 
   // Body — wider torso
-  rect(ctx, ox + 4, 9 + by, 8, 7, P.blue);
-  rect(ctx, ox + 4, 13 + by, 8, 3, P.blueDark);
+  rect(ctx, ox + 4, yo + 9 + by, 8, 7, P.blue);
+  rect(ctx, ox + 4, yo + 13 + by, 8, 3, P.blueDark);
   // Belt
-  rect(ctx, ox + 4, 15 + by, 8, 1, P.brown);
+  rect(ctx, ox + 4, yo + 15 + by, 8, 1, P.brown);
   // Shirt highlight
-  rect(ctx, ox + 5, 9 + by, 3, 3, P.blueLight);
+  rect(ctx, ox + 5, yo + 9 + by, 3, 3, P.blueLight);
 
   // Arms depend on mode — 2px wide arms with visible hands
   switch (opts.armMode) {
     case 'normal':
-      rect(ctx, ox + 2, 9 + by, 2, 5, P.blue);
-      rect(ctx, ox + 12, 9 + by, 2, 5, P.blue);
-      rect(ctx, ox + 2, 14 + by, 2, 2, P.skin);   // left hand
-      rect(ctx, ox + 12, 14 + by, 2, 2, P.skin);  // right hand
+      rect(ctx, ox + 2, yo + 9 + by, 2, 5, P.blue);
+      rect(ctx, ox + 12, yo + 9 + by, 2, 5, P.blue);
+      rect(ctx, ox + 2, yo + 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 12, yo + 14 + by, 2, 2, P.skin);
       break;
     case 'swing_left':
-      rect(ctx, ox + 1, 9 + by, 2, 4, P.blue);    // left arm forward
-      rect(ctx, ox + 13, 10 + by, 2, 5, P.blue);  // right arm back
-      rect(ctx, ox + 1, 13 + by, 2, 2, P.skin);
-      rect(ctx, ox + 13, 15 + by, 2, 2, P.skin);
+      rect(ctx, ox + 1, yo + 9 + by, 2, 4, P.blue);
+      rect(ctx, ox + 13, yo + 10 + by, 2, 5, P.blue);
+      rect(ctx, ox + 1, yo + 13 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 15 + by, 2, 2, P.skin);
       break;
     case 'swing_right':
-      rect(ctx, ox + 2, 10 + by, 2, 5, P.blue);   // left arm back
-      rect(ctx, ox + 13, 9 + by, 2, 4, P.blue);   // right arm forward
-      rect(ctx, ox + 2, 15 + by, 2, 2, P.skin);
-      rect(ctx, ox + 13, 13 + by, 2, 2, P.skin);
+      rect(ctx, ox + 2, yo + 10 + by, 2, 5, P.blue);
+      rect(ctx, ox + 13, yo + 9 + by, 2, 4, P.blue);
+      rect(ctx, ox + 2, yo + 15 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 13 + by, 2, 2, P.skin);
       break;
     case 'gather':
-      rect(ctx, ox + 1, 12 + by, 3, 2, P.blue);   // arms reaching forward-down
-      rect(ctx, ox + 12, 12 + by, 3, 2, P.blue);
-      rect(ctx, ox + 1, 14 + by, 2, 2, P.skin);
-      rect(ctx, ox + 13, 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 1, yo + 12 + by, 3, 2, P.blue);
+      rect(ctx, ox + 12, yo + 12 + by, 3, 2, P.blue);
+      rect(ctx, ox + 1, yo + 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 14 + by, 2, 2, P.skin);
       break;
     case 'gather_up':
-      rect(ctx, ox + 1, 10 + by, 3, 2, P.blue);   // arms reaching up
-      rect(ctx, ox + 12, 10 + by, 3, 2, P.blue);
-      rect(ctx, ox + 1, 9 + by, 2, 2, P.skin);
-      rect(ctx, ox + 13, 9 + by, 2, 2, P.skin);
+      rect(ctx, ox + 1, yo + 10 + by, 3, 2, P.blue);
+      rect(ctx, ox + 12, yo + 10 + by, 3, 2, P.blue);
+      rect(ctx, ox + 1, yo + 9 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 9 + by, 2, 2, P.skin);
+      break;
+    case 'gather_deep':
+      rect(ctx, ox + 1, yo + 14 + by, 3, 2, P.blue);
+      rect(ctx, ox + 12, yo + 14 + by, 3, 2, P.blue);
+      rect(ctx, ox + 1, yo + 16 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 16 + by, 2, 2, P.skin);
+      break;
+    case 'gather_pull':
+      rect(ctx, ox + 2, yo + 8 + by, 3, 2, P.blue);
+      rect(ctx, ox + 11, yo + 8 + by, 3, 2, P.blue);
+      rect(ctx, ox + 3, yo + 7 + by, 2, 2, P.skin);
+      rect(ctx, ox + 11, yo + 7 + by, 2, 2, P.skin);
+      px(ctx, ox + 7, yo + 7 + by, P.brownLight);
+      px(ctx, ox + 8, yo + 7 + by, P.brownLight);
+      break;
+    case 'attack_windup':
+      rect(ctx, ox + 2, yo + 10 + by, 2, 5, P.blue);
+      rect(ctx, ox + 2, yo + 15 + by, 2, 2, P.skin);
+      rect(ctx, ox + 12, yo + 4 + by, 2, 4, P.blue);
+      rect(ctx, ox + 12, yo + 2 + by, 2, 2, P.skin);
+      rect(ctx, ox + 12, yo + 0 + by, 2, 2, P.gray);
+      px(ctx, ox + 13, yo + 0 + by, P.grayLight);
+      break;
+    case 'attack_swing':
+      rect(ctx, ox + 1, yo + 10 + by, 2, 4, P.blue);
+      rect(ctx, ox + 1, yo + 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 8 + by, 2, 3, P.blue);
+      rect(ctx, ox + 14, yo + 7 + by, 2, 2, P.skin);
+      rect(ctx, ox + 14, yo + 5 + by, 1, 3, P.gray);
+      px(ctx, ox + 15, yo + 5 + by, P.grayLight);
+      break;
+    case 'attack_impact':
+      rect(ctx, ox + 2, yo + 11 + by, 2, 4, P.blue);
+      rect(ctx, ox + 2, yo + 15 + by, 2, 2, P.skin);
+      rect(ctx, ox + 13, yo + 11 + by, 3, 2, P.blue);
+      rect(ctx, ox + 14, yo + 13 + by, 2, 2, P.skin);
+      rect(ctx, ox + 14, yo + 15 + by, 1, 2, P.gray);
+      px(ctx, ox + 15, yo + 14 + by, P.grayLight);
+      break;
+    case 'attack_recover':
+      rect(ctx, ox + 2, yo + 9 + by, 2, 5, P.blue);
+      rect(ctx, ox + 2, yo + 14 + by, 2, 2, P.skin);
+      rect(ctx, ox + 12, yo + 10 + by, 2, 4, P.blue);
+      rect(ctx, ox + 12, yo + 14 + by, 2, 2, P.skin);
       break;
   }
 
   // Head — 6px wide
-  rect(ctx, ox + 5, 3 + by, 6, 6, P.skin);
-  rect(ctx, ox + 5, 7 + by, 6, 2, P.skinShade);  // chin/jaw shadow
+  rect(ctx, ox + 5, yo + 3 + by, 6, 6, P.skin);
+  rect(ctx, ox + 5, yo + 7 + by, 6, 2, P.skinShade);
 
   // Eyes — 2 dots with 1px gap
-  px(ctx, ox + 6, 5 + by, P.outline);
-  px(ctx, ox + 7, 5 + by, P.outline);
-  px(ctx, ox + 9, 5 + by, P.outline);
-  px(ctx, ox + 10, 5 + by, P.outline);
+  px(ctx, ox + 6, yo + 5 + by, P.outline);
+  px(ctx, ox + 7, yo + 5 + by, P.outline);
+  px(ctx, ox + 9, yo + 5 + by, P.outline);
+  px(ctx, ox + 10, yo + 5 + by, P.outline);
 
   // Mouth
-  px(ctx, ox + 7, 7 + by, P.skinShade);
-  px(ctx, ox + 8, 7 + by, P.skinShade);
+  px(ctx, ox + 7, yo + 7 + by, P.skinShade);
+  px(ctx, ox + 8, yo + 7 + by, P.skinShade);
 
   // Hair — full cap
-  rect(ctx, ox + 5, 1 + by, 6, 3, P.hair);
-  px(ctx, ox + 4, 2 + by, P.hair);
-  px(ctx, ox + 4, 3 + by, P.hair);
-  px(ctx, ox + 11, 2 + by, P.hair);
-  px(ctx, ox + 11, 3 + by, P.hair);
-  rect(ctx, ox + 5, 0 + by, 6, 1, P.hairLight);  // top highlight
+  rect(ctx, ox + 5, yo + 1 + by, 6, 3, P.hair);
+  px(ctx, ox + 4, yo + 2 + by, P.hair);
+  px(ctx, ox + 4, yo + 3 + by, P.hair);
+  px(ctx, ox + 11, yo + 2 + by, P.hair);
+  px(ctx, ox + 11, yo + 3 + by, P.hair);
+  rect(ctx, ox + 5, yo + 0 + by, 6, 1, P.hairLight);  // top highlight
 
   // Outline this frame
   drawFrameOutline(ctx, frameIdx * fw, 0, fw, fh, P.outline);
