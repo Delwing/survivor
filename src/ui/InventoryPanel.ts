@@ -3,6 +3,7 @@ import { InventorySlot, PlayerState } from '@/types/entities';
 import { getItemDef } from '@/config/items';
 import { ItemSystem } from '@/systems/ItemSystem';
 import { EventBus } from '@/systems/EventBus';
+import { QuickInventory } from '@/ui/QuickInventory';
 
 const COLS = 6;
 const ROWS = 5;
@@ -21,6 +22,12 @@ export class InventoryPanel {
   private cellCountTexts: Phaser.GameObjects.Text[] = [];
   private equippedWeaponText!: Phaser.GameObjects.Text;
   private equippedArmorText!: Phaser.GameObjects.Text;
+
+  // Drag state
+  private dragGhost: Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | null = null;
+  private dragItemId: string | null = null;
+  private dragging = false;
+  private quickInventory: QuickInventory | null = null;
 
   constructor(
     private scene: Phaser.Scene,
@@ -140,16 +147,25 @@ export class InventoryPanel {
         this.container.add(countText);
         this.cellCountTexts.push(countText);
 
-        // Make interactive (hit zone)
+        // Make interactive (hit zone) — supports click and drag-to-quickbar
         const hitZone = scene.add.zone(cx + CELL_SIZE / 2, cy + CELL_SIZE / 2, CELL_SIZE, CELL_SIZE)
           .setScrollFactor(0)
-          .setInteractive({ useHandCursor: true });
+          .setInteractive({ useHandCursor: true, draggable: true });
         hitZone.setDepth(20001);
         hitZone.setData('slotIdx', idx);
+
         hitZone.on('pointerdown', () => {
-          this.onSlotClick(idx);
+          this.startDrag(idx);
+        });
+        hitZone.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+          if (this.dragging) {
+            this.endDrag(pointer.x, pointer.y);
+          } else {
+            this.onSlotClick(idx);
+          }
         });
         hitZone.on('pointerover', () => {
+          if (this.dragging) return;
           const bg = this.cellGraphics[idx];
           bg.clear();
           bg.fillStyle(0x1e3a5f, 0.95);
@@ -158,7 +174,6 @@ export class InventoryPanel {
           bg.strokeRect(cx, cy, CELL_SIZE, CELL_SIZE);
         });
         hitZone.on('pointerout', () => {
-          // Will be re-drawn on next update, just reset look
           const bg = this.cellGraphics[idx];
           bg.clear();
           bg.fillStyle(0x0f172a, 0.9);
@@ -171,10 +186,24 @@ export class InventoryPanel {
     }
 
     // Instructions hint
-    const hint = scene.add.text(PANEL_X + 16, PANEL_Y + PANEL_H - 22, 'Click weapon/armor to equip  |  Click consumable to use  |  [I] to close', {
+    const hint = scene.add.text(PANEL_X + 16, PANEL_Y + PANEL_H - 22, 'Click to equip/use  |  Drag to quick bar  |  [I] to close', {
       fontSize: '9px', color: '#475569',
     });
     this.container.add(hint);
+
+    // Track pointer movement for drag ghost
+    scene.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      if (this.dragging && this.dragGhost) {
+        this.dragGhost.setPosition(pointer.x, pointer.y);
+      }
+    });
+
+    // Handle drop if pointer released outside a hit zone
+    scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (this.dragging) {
+        this.endDrag(pointer.x, pointer.y);
+      }
+    });
   }
 
   private _inventory: InventorySlot[] = [];
@@ -252,6 +281,74 @@ export class InventoryPanel {
     }
   }
 
+  private startDrag(idx: number): void {
+    const slot = this._inventory[idx];
+    if (!slot) return;
+    this.dragItemId = slot.itemId;
+    this.dragging = false; // becomes true on first pointermove check
+
+    // Create ghost after a tiny delay (distinguish click from drag)
+    const startX = this.scene.input.activePointer.x;
+    const startY = this.scene.input.activePointer.y;
+
+    const checkDrag = () => {
+      if (!this.dragItemId) return;
+      const ptr = this.scene.input.activePointer;
+      const dx = ptr.x - startX;
+      const dy = ptr.y - startY;
+      if (dx * dx + dy * dy > 16) { // 4px threshold
+        this.dragging = true;
+        this.createDragGhost(this.dragItemId, ptr.x, ptr.y);
+        this.scene.input.off('pointermove', checkDrag);
+      }
+    };
+    this.scene.input.on('pointermove', checkDrag);
+
+    // Clean up checker on pointerup if drag never started
+    this.scene.input.once('pointerup', () => {
+      this.scene.input.off('pointermove', checkDrag);
+    });
+  }
+
+  private createDragGhost(itemId: string, x: number, y: number): void {
+    const iconKey = `item_${itemId}`;
+    if (this.scene.textures.exists(iconKey)) {
+      const img = this.scene.add.image(x, y, iconKey);
+      img.setDisplaySize(CELL_SIZE - 8, CELL_SIZE - 8);
+      img.setAlpha(0.7);
+      img.setDepth(30000);
+      img.setScrollFactor(0);
+      this.dragGhost = img;
+    } else {
+      const def = getItemDef(itemId);
+      const g = this.scene.add.graphics();
+      g.fillStyle(def?.color ?? 0x888888, 0.7);
+      g.fillRect(-10, -10, 20, 20);
+      g.setDepth(30000);
+      g.setScrollFactor(0);
+      g.setPosition(x, y);
+      this.dragGhost = g;
+    }
+  }
+
+  private endDrag(x: number, y: number): void {
+    if (this.dragGhost) {
+      this.dragGhost.destroy();
+      this.dragGhost = null;
+    }
+
+    if (this.dragging && this.dragItemId && this.quickInventory) {
+      const slotIdx = this.quickInventory.getSlotAtPosition(x, y);
+      if (slotIdx >= 0) {
+        this.quickInventory.assignItem(slotIdx, this.dragItemId);
+        this.quickInventory.update(this._inventory, this._equipment.weapon);
+      }
+    }
+
+    this.dragging = false;
+    this.dragItemId = null;
+  }
+
   private onSlotClick(idx: number): void {
     const slot = this._inventory[idx];
     if (!slot) return;
@@ -271,6 +368,8 @@ export class InventoryPanel {
     // Refresh display
     this.update(this._inventory, this._equipment);
   }
+
+  setQuickInventory(qi: QuickInventory): void { this.quickInventory = qi; }
 
   show(): void { this.container.setVisible(true); }
   hide(): void { this.container.setVisible(false); }

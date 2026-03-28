@@ -149,12 +149,15 @@ export class GameScene extends Phaser.Scene {
 
     // Inventory panel
     this.inventoryPanel = new InventoryPanel(this, this.itemSystem, this.eventBus);
+    this.inventoryPanel.setQuickInventory(this.quickInventory);
     this.uiManager.registerPanel('inventory', this.inventoryPanel.getContainer());
 
     // I key — toggle inventory
     this.input.keyboard!.on('keydown-I', () => {
       this.uiManager.togglePanel('inventory');
-      if (this.uiManager.isOpen()) {
+      const invOpen = this.uiManager.isOpen();
+      this.quickInventory.setAbovePanels(invOpen);
+      if (invOpen) {
         this.inventoryPanel.update(this.player.inventory, this.player.equipment);
       }
     });

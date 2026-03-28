@@ -19,6 +19,12 @@ export class QuickInventory {
   private _inventory: InventorySlot[] = [];
   private _equippedWeapon: string | null = null;
 
+  // Manually assigned item IDs per slot (null = empty)
+  private assignedSlots: (string | null)[] = new Array(MAX_SLOTS).fill(null);
+
+  // Slot positions for hit-testing during drag
+  private slotPositions: { x: number; y: number }[] = [];
+
   constructor(private scene: Phaser.Scene, private eventBus: EventBus, private isUIBlocked?: () => boolean) {
     this.container = scene.add.container(0, 0);
     this.container.setScrollFactor(0);
@@ -32,6 +38,7 @@ export class QuickInventory {
 
     for (let i = 0; i < MAX_SLOTS; i++) {
       const x = startX + i * (SLOT_SIZE + SLOT_GAP);
+      this.slotPositions.push({ x, y: bottom });
 
       const bg = scene.add.graphics();
       bg.fillStyle(0x1e293b, 0.85);
@@ -87,45 +94,80 @@ export class QuickInventory {
     }
   }
 
-  private onSlotClick(slotIdx: number): void {
-    if (this.isUIBlocked?.()) return;
-    // Sort same as display
-    const sorted = this.getSortedInventory();
-    const slot = sorted[slotIdx];
-    if (!slot) return;
-    const def = getItemDef(slot.itemId);
-    if (!def) return;
-
-    if (def.type === 'weapon' || def.type === 'tool') {
-      this.eventBus.emit('equipment-changed', { slot: 'weapon', itemId: slot.itemId });
-    } else if (def.type === 'armor') {
-      this.eventBus.emit('equipment-changed', { slot: 'armor', itemId: slot.itemId });
-    } else if (def.type === 'consumable') {
-      this.eventBus.emit('consumable-used', { itemId: slot.itemId });
+  /** Raise depth above panels (when inventory is open) or back to normal. */
+  setAbovePanels(above: boolean): void {
+    this.container.setDepth(above ? 25000 : 10000);
+    for (const hz of this.hitZones) {
+      hz.setDepth(above ? 25001 : 10001);
     }
   }
 
-  private getSortedInventory(): InventorySlot[] {
-    return [...this._inventory].sort((a, b) => {
-      const defA = getItemDef(a.itemId);
-      const defB = getItemDef(b.itemId);
-      const typeOrder = (type: string) => {
-        if (type === 'consumable') return 0;
-        if (type === 'tool' || type === 'weapon' || type === 'armor') return 1;
-        if (type === 'resource') return 2;
-        return 3;
-      };
-      const orderA = typeOrder(defA?.type ?? 'misc');
-      const orderB = typeOrder(defB?.type ?? 'misc');
-      return orderA - orderB;
-    });
+  /** Assign an item to a quick slot (called from drag-drop). */
+  assignItem(slotIdx: number, itemId: string): void {
+    if (slotIdx < 0 || slotIdx >= MAX_SLOTS) return;
+    // Remove item from any other slot first
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (this.assignedSlots[i] === itemId) this.assignedSlots[i] = null;
+    }
+    this.assignedSlots[slotIdx] = itemId;
+  }
+
+  /** Check if a screen position is over a quick slot. Returns slot index or -1. */
+  getSlotAtPosition(screenX: number, screenY: number): number {
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      const pos = this.slotPositions[i];
+      if (screenX >= pos.x && screenX <= pos.x + SLOT_SIZE &&
+          screenY >= pos.y && screenY <= pos.y + SLOT_SIZE) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private onSlotClick(slotIdx: number): void {
+    if (this.isUIBlocked?.()) return;
+    const itemId = this.assignedSlots[slotIdx];
+    if (!itemId) return;
+
+    // Check item still exists in inventory
+    const slot = this._inventory.find(s => s.itemId === itemId);
+    if (!slot) return;
+
+    const def = getItemDef(itemId);
+    if (!def) return;
+
+    if (def.type === 'weapon' || def.type === 'tool') {
+      this.eventBus.emit('equipment-changed', { slot: 'weapon', itemId });
+    } else if (def.type === 'armor') {
+      this.eventBus.emit('equipment-changed', { slot: 'armor', itemId });
+    } else if (def.type === 'consumable') {
+      this.eventBus.emit('consumable-used', { itemId });
+    }
   }
 
   update(inventory: InventorySlot[], equippedWeapon?: string | null): void {
     this._inventory = inventory;
     if (equippedWeapon !== undefined) this._equippedWeapon = equippedWeapon;
 
-    const sorted = this.getSortedInventory();
+    // Auto-assign new items to empty slots if they aren't assigned anywhere yet
+    const assignedSet = new Set(this.assignedSlots.filter(Boolean));
+    for (const slot of inventory) {
+      if (!assignedSet.has(slot.itemId)) {
+        const emptyIdx = this.assignedSlots.indexOf(null);
+        if (emptyIdx !== -1) {
+          this.assignedSlots[emptyIdx] = slot.itemId;
+          assignedSet.add(slot.itemId);
+        }
+      }
+    }
+
+    // Clear slots for items no longer in inventory
+    const inventoryIds = new Set(inventory.map(s => s.itemId));
+    for (let i = 0; i < MAX_SLOTS; i++) {
+      if (this.assignedSlots[i] && !inventoryIds.has(this.assignedSlots[i]!)) {
+        this.assignedSlots[i] = null;
+      }
+    }
 
     const cx = this.scene.cameras.main.width / 2;
     const bottom = this.scene.cameras.main.height - BOTTOM_PADDING - SLOT_SIZE - 8;
@@ -133,7 +175,8 @@ export class QuickInventory {
     const startX = cx - totalWidth / 2;
 
     for (let i = 0; i < MAX_SLOTS; i++) {
-      const slot = sorted[i];
+      const itemId = this.assignedSlots[i];
+      const slot = itemId ? inventory.find(s => s.itemId === itemId) : null;
       const x = startX + i * (SLOT_SIZE + SLOT_GAP);
 
       // Redraw bg
@@ -169,7 +212,6 @@ export class QuickInventory {
         const iconY = bottom + 4;
 
         if (this.scene.textures.exists(iconKey)) {
-          // Use pixel-art icon, scaled to fit the icon area
           const img = this.scene.add.image(
             iconX + iconSize / 2,
             iconY + iconSize / 2,
@@ -179,7 +221,6 @@ export class QuickInventory {
           this.container.add(img);
           this.itemImages[i] = img;
         } else {
-          // Fallback: colored square
           bg.fillStyle(color, 1);
           bg.fillRect(iconX, iconY, iconSize, iconSize);
         }
@@ -187,7 +228,6 @@ export class QuickInventory {
         this.countTexts[i].setText(slot.count > 1 ? String(slot.count) : '');
         this.nameTexts[i].setText(def?.name?.slice(0, 6) ?? slot.itemId.slice(0, 6));
 
-        // Update text positions — count overlays top-right of slot
         this.countTexts[i].setPosition(x + SLOT_SIZE - 1, bottom + 1);
         this.nameTexts[i].setPosition(x + SLOT_SIZE / 2, bottom + SLOT_SIZE + 2);
       } else {
