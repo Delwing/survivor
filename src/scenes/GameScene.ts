@@ -29,7 +29,7 @@ import { getItemDef } from '@/config/items';
 import { getGatherResult } from '@/config/gathering';
 import { CraftingStation } from '@/types/items';
 import { RECIPE_DEFINITIONS } from '@/config/recipes';
-import { MusicSystem } from '@/audio/MusicSystem';
+import { getSharedMusic } from '@/scenes/MainMenuScene';
 import { SFXSystem } from '@/audio/SFXSystem';
 
 const GATHER_RANGE = 40; // must be this close to gather
@@ -91,6 +91,8 @@ export class GameScene extends Phaser.Scene {
   private warnedStarving = false;
 
   private discoveredMaterials = new Set<string>();
+  private lastMoveTime = 0;
+  private lastCombatTime = 0;
 
   private placedStations: { type: CraftingStation; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
   private buildMenuOpen = false;
@@ -101,16 +103,22 @@ export class GameScene extends Phaser.Scene {
   /** True when the pointer is hovering over any fixed UI element */
   private pointerOverUI = false;
 
-  private musicSystem!: MusicSystem;
+  private musicSystem = getSharedMusic();
   private sfx!: SFXSystem;
   private fpsText!: Phaser.GameObjects.Text;
 
   constructor() { super({ key: 'Game' }); }
 
   create(data: { seed: string }): void {
-    // Init music system
-    this.musicSystem = new MusicSystem();
+    // Use shared music system — init() is idempotent; calling here works because
+    // the player already clicked a button in the menu to reach this scene.
+    this.musicSystem = getSharedMusic();
     this.sfx = new SFXSystem();
+    this.musicSystem.init();
+    this.musicSystem.stopMenuDrone();
+    this.musicSystem.start();
+    const audioCtx = this.musicSystem.getAudioContext();
+    if (audioCtx) this.sfx.init(audioCtx);
 
     // Init systems
     this.eventBus = new EventBus();
@@ -331,12 +339,6 @@ export class GameScene extends Phaser.Scene {
 
     // Input — click to move or gather
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Bootstrap audio on first user interaction (browser autoplay policy)
-      this.musicSystem.init();
-      this.musicSystem.start();
-      const ctx = this.musicSystem.getAudioContext();
-      if (ctx) this.sfx.init(ctx);
-
       // Ignore clicks when pointer is over any UI
       if (this.isInputBlockedByUI()) return;
       if (this.inputConsumed) return;
@@ -500,6 +502,23 @@ export class GameScene extends Phaser.Scene {
     this.updateHunger(delta, time);
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
+    // Update music state based on combat/movement
+    const now = this.time.now;
+    if (this.mobTarget) {
+      this.lastCombatTime = now;
+    }
+    if (this.moveTarget) {
+      this.lastMoveTime = now;
+    }
+
+    if (now - this.lastCombatTime < 3000) {
+      this.musicSystem.setMusicState('combat');
+    } else if (now - this.lastMoveTime > 5000) {
+      this.musicSystem.setMusicState('idle');
+    } else {
+      this.musicSystem.setMusicState('exploring');
+    }
+
     this.hud.update(this.player, this.currentBiomeName);
     this.quickInventory.update(this.player.inventory, this.player.equipment.weapon);
     this.updateMobs(delta);
@@ -1540,6 +1559,17 @@ export class GameScene extends Phaser.Scene {
 
   private endRun(cause: string): void {
     this.musicSystem.stop();
+
+    // Clean up baked chunk textures so they don't collide on the next run
+    for (const [, rendered] of this.renderedChunks) {
+      rendered.tileSprite.destroy();
+      rendered.resourceSprites.forEach(s => s.destroy());
+      if (this.textures.exists(rendered.textureKey)) {
+        this.textures.remove(rendered.textureKey);
+      }
+    }
+    this.renderedChunks.clear();
+
     const survived = this.time.now - this.runStartTime;
     this.progression.recordRunEnd();
     this.progression.save();

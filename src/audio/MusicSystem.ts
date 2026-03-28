@@ -444,6 +444,7 @@ export class MusicSystem {
         if (this.arpGain) {
           this.arpGain.gain.setTargetAtTime(1.0, now, FADE);
         }
+        this.nextPercTime = now; // prevent burst catch-up after long idle
         break;
 
       case 'idle':
@@ -513,6 +514,7 @@ export class MusicSystem {
     // Bass — every 2 beats
     // ------------------------------------------------------------------
     while (this.nextBassTime < horizon) {
+      if (this.currentBassPhrase.length === 0) break;
       const note = this.currentBassPhrase[this.currentBassNoteIdx];
       this.playNote(note, variation.bassWaveform, this.nextBassTime, beat * 1.8, 0.55, this.masterGain!);
       this.currentBassNoteIdx++;
