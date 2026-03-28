@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
+import { WorldSystem } from '@/systems/WorldSystem';
 
 const PANEL_X = 60;
 const PANEL_Y = 30;
 const PANEL_W = 840;
 const PANEL_H = 480;
 
-const TILE_PX = 12; // pixels per chunk square
+const TILE_PX = 12; // pixels per chunk square (normal mode)
+const DEBUG_TILE_PX = 4; // pixels per chunk square (debug mode)
 
 const BIOME_COLORS: Record<string, number> = {
   forest:          0x22aa22,
@@ -38,6 +40,11 @@ export class MapPanel {
   private playerChunkY = 0;
   private blinkTimer = 0;
   private blinkVisible = true;
+  private debugMode = false;
+  private worldSystem: WorldSystem | null = null;
+  private debugBiomeCache = new Map<string, string>();
+  private debugCacheCenterX = -9999;
+  private debugCacheCenterY = -9999;
 
   constructor(private scene: Phaser.Scene) {
     this.container = scene.add.container(0, 0);
@@ -131,6 +138,15 @@ export class MapPanel {
     this.playerChunkX = playerChunkX;
     this.playerChunkY = playerChunkY;
     this.coordsText.setText(`Chunk: ${playerChunkX}, ${playerChunkY}`);
+
+    // Rebuild debug cache when player moves to a new chunk
+    if (this.debugMode && this.worldSystem &&
+        (playerChunkX !== this.debugCacheCenterX || playerChunkY !== this.debugCacheCenterY)) {
+      this.debugCacheCenterX = playerChunkX;
+      this.debugCacheCenterY = playerChunkY;
+      this.rebuildDebugCache();
+    }
+
     this.redrawMap();
 
     // Blink the player dot
@@ -150,9 +166,11 @@ export class MapPanel {
     const mapAreaW = PANEL_W - 32;
     const mapAreaH = PANEL_H - 90;
 
+    const tilePx = this.debugMode ? DEBUG_TILE_PX : TILE_PX;
+
     // Map viewport: how many chunks fit
-    const colsVisible = Math.floor(mapAreaW / TILE_PX);
-    const rowsVisible = Math.floor(mapAreaH / TILE_PX);
+    const colsVisible = Math.floor(mapAreaW / tilePx);
+    const rowsVisible = Math.floor(mapAreaH / tilePx);
 
     // Center on player
     const originCX = this.playerChunkX - Math.floor(colsVisible / 2);
@@ -160,26 +178,38 @@ export class MapPanel {
 
     // Draw map border
     this.mapGraphics.lineStyle(1, 0x334155);
-    this.mapGraphics.strokeRect(mapAreaX, mapAreaY, colsVisible * TILE_PX, rowsVisible * TILE_PX);
+    this.mapGraphics.strokeRect(mapAreaX, mapAreaY, colsVisible * tilePx, rowsVisible * tilePx);
 
     for (let row = 0; row < rowsVisible; row++) {
       for (let col = 0; col < colsVisible; col++) {
         const cx = originCX + col;
         const cy = originCY + row;
         const key = `${cx},${cy}`;
-        const biomeId = this.exploredChunks.get(key);
+
+        let biomeId: string | undefined;
+        if (this.debugMode && this.worldSystem) {
+          // Debug: use cached biomes (rebuilt only when player moves chunks)
+          biomeId = this.exploredChunks.get(key) ?? this.debugBiomeCache.get(key);
+        } else {
+          biomeId = this.exploredChunks.get(key);
+        }
 
         if (!biomeId) continue; // unexplored — leave dark
 
         const color = BIOME_COLORS[biomeId] ?? DEFAULT_COLOR;
-        const px = mapAreaX + col * TILE_PX;
-        const py = mapAreaY + row * TILE_PX;
+        const px = mapAreaX + col * tilePx;
+        const py = mapAreaY + row * tilePx;
 
-        this.mapGraphics.fillStyle(color, 1);
-        this.mapGraphics.fillRect(px, py, TILE_PX - 1, TILE_PX - 1);
-        // Subtle inner highlight on top edge
-        this.mapGraphics.fillStyle(0xffffff, 0.08);
-        this.mapGraphics.fillRect(px, py, TILE_PX - 1, 1);
+        // In debug mode, dim unexplored chunks
+        const explored = this.exploredChunks.has(key);
+        this.mapGraphics.fillStyle(color, this.debugMode && !explored ? 0.5 : 1);
+        this.mapGraphics.fillRect(px, py, tilePx - (tilePx > 4 ? 1 : 0), tilePx - (tilePx > 4 ? 1 : 0));
+
+        if (!this.debugMode) {
+          // Subtle inner highlight on top edge
+          this.mapGraphics.fillStyle(0xffffff, 0.08);
+          this.mapGraphics.fillRect(px, py, tilePx - 1, 1);
+        }
       }
     }
 
@@ -190,6 +220,7 @@ export class MapPanel {
     this._rowsVisible = rowsVisible;
     this._originCX = originCX;
     this._originCY = originCY;
+    this._tilePx = tilePx;
   }
 
   // Cached map layout for player dot placement
@@ -199,6 +230,7 @@ export class MapPanel {
   private _rowsVisible = 0;
   private _originCX = 0;
   private _originCY = 0;
+  private _tilePx = TILE_PX;
 
   private drawPlayerDot(): void {
     this.playerDot.clear();
@@ -209,13 +241,46 @@ export class MapPanel {
 
     if (col < 0 || col >= this._colsVisible || row < 0 || row >= this._rowsVisible) return;
 
-    const px = this._mapAreaX + col * TILE_PX + TILE_PX / 2;
-    const py = this._mapAreaY + row * TILE_PX + TILE_PX / 2;
+    const px = this._mapAreaX + col * this._tilePx + this._tilePx / 2;
+    const py = this._mapAreaY + row * this._tilePx + this._tilePx / 2;
+    const dotSize = this.debugMode ? 2 : 3;
 
     this.playerDot.fillStyle(0xffffff, 1);
-    this.playerDot.fillCircle(px, py, 3);
+    this.playerDot.fillCircle(px, py, dotSize);
     this.playerDot.lineStyle(1, 0x000000, 0.5);
-    this.playerDot.strokeCircle(px, py, 3);
+    this.playerDot.strokeCircle(px, py, dotSize);
+  }
+
+  setWorldSystem(ws: WorldSystem): void { this.worldSystem = ws; }
+
+  toggleDebug(): void {
+    this.debugMode = !this.debugMode;
+    if (this.debugMode && this.worldSystem) {
+      this.debugCacheCenterX = this.playerChunkX;
+      this.debugCacheCenterY = this.playerChunkY;
+      this.rebuildDebugCache();
+    }
+  }
+
+  private rebuildDebugCache(): void {
+    if (!this.worldSystem) return;
+    this.debugBiomeCache.clear();
+    const mapAreaW = PANEL_W - 32;
+    const mapAreaH = PANEL_H - 90;
+    const cols = Math.floor(mapAreaW / DEBUG_TILE_PX);
+    const rows = Math.floor(mapAreaH / DEBUG_TILE_PX);
+    const ox = this.playerChunkX - Math.floor(cols / 2);
+    const oy = this.playerChunkY - Math.floor(rows / 2);
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const cx = ox + c;
+        const cy = oy + r;
+        const key = `${cx},${cy}`;
+        if (!this.exploredChunks.has(key)) {
+          this.debugBiomeCache.set(key, this.worldSystem.getChunkBiome(cx, cy));
+        }
+      }
+    }
   }
 
   show(): void { this.container.setVisible(true); }

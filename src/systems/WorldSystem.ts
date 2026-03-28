@@ -51,7 +51,7 @@ export class WorldSystem {
         const moisture = this.moistureNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE);
         const heat = this.heatNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE);
         const corruption = this.corruptionNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE * 0.5);
-        const biomeId = this.assignBiome(cx, cy, elevation, moisture, heat, corruption);
+        const biomeId = this.assignBiome(cx, cy, worldX, worldY, elevation, moisture, heat, corruption);
         const resourceNodeId = this.placeResource(worldX, worldY, biomeId);
         tileRow.push({ biomeId, elevation, resourceNodeId, walkable: true });
       }
@@ -60,15 +60,15 @@ export class WorldSystem {
     return { x: cx, y: cy, tiles, entities: [], generated: true };
   }
 
-  private assignBiome(cx: number, cy: number, elevation: number, moisture: number, heat: number, corruption: number): string {
+  private assignBiome(cx: number, cy: number, worldX: number, worldY: number, elevation: number, moisture: number, heat: number, corruption: number): string {
     // Distance from world center in chunks — gates harder biomes behind exploration
     const dist = Math.sqrt(cx * cx + cy * cy);
 
     // Spawn chunk is always forest
     if (cx === 0 && cy === 0) return 'forest';
 
-    // Noise value used to pick sub-variant deterministically
-    const v = this.resourceNoise.getNormalized(cx * 3.7, cy * 3.7);
+    // Very coarse noise for variant — huge coherent regions (~30+ chunks)
+    const v = this.resourceNoise.getNormalized(worldX * 0.002, worldY * 0.002);
 
     // T5: Corrupted — only 20+ chunks out
     if (dist >= 20 && corruption > 0.85) {
@@ -102,6 +102,18 @@ export class WorldSystem {
     if (v < 0.33) return 'forest';
     if (v < 0.66) return 'dark_forest';
     return 'pine_forest';
+  }
+
+  /** Get the dominant biome for a chunk without fully generating it. */
+  getChunkBiome(cx: number, cy: number): string {
+    // Sample the center tile of the chunk
+    const worldX = cx * CHUNK_SIZE + Math.floor(CHUNK_SIZE / 2);
+    const worldY = cy * CHUNK_SIZE + Math.floor(CHUNK_SIZE / 2);
+    const elevation = this.elevationNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE);
+    const moisture = this.moistureNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE);
+    const heat = this.heatNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE);
+    const corruption = this.corruptionNoise.getScaledNormalized(worldX, worldY, WORLD_SCALE * 0.5);
+    return this.assignBiome(cx, cy, worldX, worldY, elevation, moisture, heat, corruption);
   }
 
   private placeResource(worldX: number, worldY: number, biomeId: string): string | null {

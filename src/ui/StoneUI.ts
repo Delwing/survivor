@@ -55,6 +55,16 @@ export function stoneButton(config: StoneButtonConfig): Phaser.GameObjects.Conta
 
   const bg = scene.add.graphics();
 
+  // Pre-generate speckle positions once
+  const rng = new Phaser.Math.RandomDataGenerator(['stone-btn']);
+  const speckles: { x: number; y: number }[] = [];
+  for (let i = 0; i < 20; i++) {
+    speckles.push({
+      x: rng.between(-width / 2 + 4, width / 2 - 4),
+      y: rng.between(-height / 2 + 4, height / 2 - 4),
+    });
+  }
+
   const drawBg = (fillColor: number, borderColor: number): void => {
     bg.clear();
     bg.fillStyle(fillColor, 1);
@@ -62,13 +72,9 @@ export function stoneButton(config: StoneButtonConfig): Phaser.GameObjects.Conta
     bg.lineStyle(1, borderColor, 1);
     bg.strokeRoundedRect(-width / 2, -height / 2, width, height, 6);
 
-    // Stone grain speckles (~20 darker dots)
     bg.fillStyle(0x282828, 0.6);
-    const rng = new Phaser.Math.RandomDataGenerator(['stone-btn']);
-    for (let i = 0; i < 20; i++) {
-      const sx = rng.between(-width / 2 + 4, width / 2 - 4);
-      const sy = rng.between(-height / 2 + 4, height / 2 - 4);
-      bg.fillRect(sx, sy, 1, 1);
+    for (const s of speckles) {
+      bg.fillRect(s.x, s.y, 1, 1);
     }
   };
 

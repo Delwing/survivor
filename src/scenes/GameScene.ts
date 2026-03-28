@@ -70,6 +70,7 @@ export class GameScene extends Phaser.Scene {
   private spawnedChunks = new Set<string>();
   private lastPlayerAttack = 0;
   private gatherTarget: { state: ResourceNodeState; sprite: Phaser.GameObjects.Sprite } | null = null;
+  private gatherTimer: Phaser.Time.TimerEvent | null = null;
   private stationTarget: { type: CraftingStation; x: number; y: number } | null = null;
   private mobTarget: { state: MobState; sprite: Phaser.GameObjects.Sprite } | null = null;
   private moveMarker!: Phaser.GameObjects.Graphics;
@@ -93,6 +94,7 @@ export class GameScene extends Phaser.Scene {
   private discoveredMaterials = new Set<string>();
   private lastMoveTime = 0;
   private lastCombatTime = 0;
+  private _lastMusicState = 'exploring';
 
   private placedStations: { type: CraftingStation; x: number; y: number; sprite: Phaser.GameObjects.Sprite }[] = [];
   private buildMenuOpen = false;
@@ -256,12 +258,21 @@ export class GameScene extends Phaser.Scene {
 
     // Map panel
     this.mapPanel = new MapPanel(this);
+    this.mapPanel.setWorldSystem(this.worldSystem);
     this.uiManager.registerPanel('map', this.mapPanel.getContainer());
 
     // M key — toggle map panel
     this.input.keyboard!.on('keydown-M', () => {
       this.uiManager.togglePanel('map');
       if (this.uiManager.isOpen()) {
+        this.mapPanel.update(this.currentChunkX, this.currentChunkY);
+      }
+    });
+
+    // F9 — toggle debug map (zoomed out, shows all biomes)
+    this.input.keyboard!.on('keydown-F9', () => {
+      this.mapPanel.toggleDebug();
+      if (this.mapPanel.getContainer().visible) {
         this.mapPanel.update(this.currentChunkX, this.currentChunkY);
       }
     });
@@ -389,6 +400,9 @@ export class GameScene extends Phaser.Scene {
       if (closestRes) {
         // If already gathering this resource, ignore the click
         if (this.gatherTarget === closestRes) return;
+        // Cancel pending gather timer and reset progress when switching
+        if (this.gatherTimer) { this.gatherTimer.destroy(); this.gatherTimer = null; }
+        if (this.gatherTarget) this.gatherTarget.state.hitProgress = 0;
         this.gatherTarget = closestRes;
         this.stationTarget = null;
         this.mobTarget = null;
@@ -502,21 +516,17 @@ export class GameScene extends Phaser.Scene {
     this.updateHunger(delta, time);
     this.updatePlayerMovement(delta);
     this.updateChunkTracking();
-    // Update music state based on combat/movement
+    // Update music state based on combat/movement (only call on change)
     const now = this.time.now;
-    if (this.mobTarget) {
-      this.lastCombatTime = now;
-    }
-    if (this.moveTarget) {
-      this.lastMoveTime = now;
-    }
+    if (this.mobTarget) this.lastCombatTime = now;
+    if (this.moveTarget) this.lastMoveTime = now;
 
-    if (now - this.lastCombatTime < 3000) {
-      this.musicSystem.setMusicState('combat');
-    } else if (now - this.lastMoveTime > 5000) {
-      this.musicSystem.setMusicState('idle');
-    } else {
-      this.musicSystem.setMusicState('exploring');
+    const newState = now - this.lastCombatTime < 3000 ? 'combat'
+      : now - this.lastMoveTime > 5000 ? 'idle'
+      : 'exploring';
+    if (newState !== this._lastMusicState) {
+      this._lastMusicState = newState;
+      this.musicSystem.setMusicState(newState);
     }
 
     this.hud.update(this.player, this.currentBiomeName);
@@ -776,8 +786,10 @@ export class GameScene extends Phaser.Scene {
         `${res.state.hitProgress}/${result.hitsNeeded}`,
         '#94a3b8',
       );
-      // Schedule next hit
-      this.time.delayedCall(700, () => {
+      // Schedule next hit (cancel any existing timer first)
+      if (this.gatherTimer) this.gatherTimer.destroy();
+      this.gatherTimer = this.time.delayedCall(700, () => {
+        this.gatherTimer = null;
         if (this.gatherTarget === res && res.state.remaining > 0) {
           this.doGatherHit(res);
         }
@@ -801,7 +813,9 @@ export class GameScene extends Phaser.Scene {
       this.playerSprite.play('player_idle', true);
     } else {
       // Auto-continue gathering next unit
-      this.time.delayedCall(700, () => {
+      if (this.gatherTimer) this.gatherTimer.destroy();
+      this.gatherTimer = this.time.delayedCall(700, () => {
+        this.gatherTimer = null;
         if (this.gatherTarget === res && res.state.remaining > 0) {
           this.doGatherHit(res);
         } else if (!this.gatherTarget) {
@@ -973,80 +987,80 @@ export class GameScene extends Phaser.Scene {
       subA: 0x180030,
       subB: 0x440070,
     },
-    // ── Forest variants ────────────────────────────────────────────────────
+    // ── Forest variants (subtle shifts from forest) ──────────────────────
     dark_forest: {
-      bases: [0x1e5c22, 0x245a26, 0x1a5420, 0x286028, 0x205622, 0x185018],
-      edge: 0x143c18,
-      details: [0x3a7a30, 0x2a6a24, 0xc04020, 0x6b4010, 0x4a2c10, 0x1e3010],
-      subA: 0x184020,
-      subB: 0x306030,
+      bases: [0x368242, 0x3c8846, 0x327c3e, 0x42924c, 0x388442, 0x2e7a3a],
+      edge: 0x286830,
+      details: [0x4ea848, 0x42924a, 0xe0b038, 0xd07838, 0x603a20, 0x503218],
+      subA: 0x2e6836,
+      subB: 0x4aa050,
     },
     pine_forest: {
-      bases: [0x2a7838, 0x307a3c, 0x267034, 0x368040, 0x2c7436, 0x246c30],
-      edge: 0x1c5428,
-      details: [0x4aaa44, 0x52b04a, 0xd0d860, 0x80c060, 0x3a6840, 0x284c30],
-      subA: 0x205830,
-      subB: 0x40904a,
+      bases: [0x408c50, 0x469054, 0x3c864c, 0x4c985a, 0x428e50, 0x388448],
+      edge: 0x2e7238,
+      details: [0x58b254, 0x4ca056, 0xecc044, 0xd89040, 0x644028, 0x54361e],
+      subA: 0x367040,
+      subB: 0x54ac5a,
     },
-    // ── Rocky Highlands variants ───────────────────────────────────────────
+    // ── Rocky Highlands variants (subtle shifts) ──────────────────────────
     granite_peaks: {
-      bases: [0x847060, 0x8a7666, 0x7e6a5a, 0x907870, 0x867268, 0x7c6c5e],
-      edge: 0x5a4a40,
-      details: [0x5a4a38, 0x9a8870, 0x404030, 0xb09878, 0x706050, 0x302820],
-      subA: 0x625040,
-      subB: 0x9c8878,
+      bases: [0x7c7c78, 0x868682, 0x727268, 0x8e8e86, 0x787870, 0x848480],
+      edge: 0x5c5c54,
+      details: [0x545448, 0x989890, 0x444438, 0xaeaea2, 0x6c6c60, 0x343428],
+      subA: 0x646458,
+      subB: 0x989890,
     },
     crystal_caverns: {
-      bases: [0x5a6878, 0x606e80, 0x546270, 0x667488, 0x5c6a7c, 0x506474],
-      edge: 0x3a4858,
-      details: [0x4488cc, 0x66aadd, 0x88ccff, 0x2266aa, 0x3a3a5a, 0x202838],
-      subA: 0x384858,
-      subB: 0x7090aa,
+      bases: [0x747880, 0x7e8288, 0x6a6e76, 0x868a90, 0x787c84, 0x70747c],
+      edge: 0x545860,
+      details: [0x4c5060, 0x909498, 0x3c404c, 0xa6aab0, 0x646870, 0x2c3038],
+      subA: 0x5c6068,
+      subB: 0x909498,
     },
-    // ── Swamp variants ─────────────────────────────────────────────────────
+    // ── Swamp variants (subtle shifts) ────────────────────────────────────
     bog: {
-      bases: [0x243a24, 0x273828, 0x213420, 0x2c3e2c, 0x253622, 0x1e3018],
-      edge: 0x162614,
-      details: [0x0e1e1e, 0x1a4a20, 0x382e14, 0x101c10, 0x6b5020, 0x4a3818],
-      subA: 0x162210,
-      subB: 0x344830,
+      bases: [0x345636, 0x38542e, 0x304a32, 0x3c5434, 0x344c2c, 0x385232],
+      edge: 0x263c26,
+      details: [0x162a2a, 0x266a2c, 0x465628, 0x183818, 0x886e3c, 0x665430],
+      subA: 0x263c1e,
+      subB: 0x44643c,
     },
     marshland: {
-      bases: [0x3a5e48, 0x3d5c44, 0x355442, 0x426250, 0x38583e, 0x3c5e44],
-      edge: 0x284030,
-      details: [0x2a5e5e, 0x306e50, 0x4a6a38, 0x205050, 0x8b7a48, 0x607060],
-      subA: 0x244434,
-      subB: 0x4a7458,
+      bases: [0x3e6040, 0x405e36, 0x385438, 0x465c3e, 0x3c5432, 0x425a3a],
+      edge: 0x2e4430,
+      details: [0x1e3434, 0x2e7236, 0x4e5e2e, 0x204222, 0x8e7844, 0x6e5c34],
+      subA: 0x2e4426,
+      subB: 0x4c6e46,
     },
-    // ── Volcanic Wastes variants ───────────────────────────────────────────
+    // ── Volcanic Wastes variants (subtle shifts) ──────────────────────────
     ash_fields: {
-      bases: [0x484848, 0x505050, 0x424242, 0x3c3c3c, 0x4c4c4c, 0x404040],
-      edge: 0x2a2a2a,
-      details: [0xff6600, 0xcc4400, 0x888888, 0x303030, 0x1a1a1a, 0x222222],
-      subA: 0x2c2c2c,
-      subB: 0x606060,
+      bases: [0x4e2424, 0x562c2c, 0x482222, 0x401e1e, 0x522828, 0x441e1e],
+      edge: 0x321818,
+      details: [0xff4800, 0xff6a00, 0xff8c00, 0xffae00, 0x2c2c2c, 0x1e1e1e],
+      subA: 0x321414,
+      subB: 0x642424,
     },
     lava_flows: {
-      bases: [0x5a2010, 0x622818, 0x541c0c, 0x4e1808, 0x5e2214, 0x481a0a],
-      edge: 0x300c04,
-      details: [0xff6600, 0xff8800, 0xffaa00, 0xff4400, 0x282020, 0x1a1010],
-      subA: 0x2e0c04,
-      subB: 0x782020,
+      bases: [0x4c2222, 0x542a2a, 0x462020, 0x3e1c1c, 0x502626, 0x421e1e],
+      edge: 0x301616,
+      details: [0xff4c00, 0xff6e00, 0xff9000, 0xffb200, 0x2a2a2a, 0x1c1c1c],
+      subA: 0x301212,
+      subB: 0x5e2222,
     },
-    // ── Corrupted Lands variants ───────────────────────────────────────────
+    // ── Corrupted Lands variants (subtle shifts) ──────────────────────────
     shadow_realm: {
-      bases: [0x200040, 0x280050, 0x1c0038, 0x2e0058, 0x240044, 0x1e0040],
-      edge: 0x100020,
-      details: [0x6600cc, 0xaa22ff, 0xdd00ee, 0x880099, 0x040004, 0x080018],
-      subA: 0x100028,
-      subB: 0x380060,
+      bases: [0x2c004c, 0x320058, 0x280044, 0x380064, 0x2f0050, 0x34005c],
+      edge: 0x1c0034,
+      details: [0x8e04ff, 0xce48ff, 0xff04ff, 0xac04d0, 0x0a000a, 0x120024],
+      subA: 0x1a0034,
+      subB: 0x460074,
     },
     void_wastes: {
-      bases: [0x0a0030, 0x100038, 0x080028, 0x140040, 0x0c0034, 0x0a002e],
-      edge: 0x060018,
-      details: [0x0044aa, 0x0066cc, 0x00aaff, 0x003388, 0x060006, 0x000410],
-      subA: 0x060020,
-      subB: 0x1a0050,
+      bases: [0x280046, 0x2e0052, 0x24003e, 0x32005c, 0x2b004a, 0x300056],
+      edge: 0x18002e,
+      details: [0x8800f8, 0xca40f8, 0xf800f8, 0xa800c8, 0x080006, 0x10001e],
+      subA: 0x16002e,
+      subB: 0x42006e,
     },
   };
 
@@ -1067,15 +1081,16 @@ export class GameScene extends Phaser.Scene {
     const hw = TILE_WIDTH / 2;
     const hh = TILE_HEIGHT / 2;
     const pad = 4; // small padding for detail overflow (grass blades etc.)
+    const MAX_ELEV_PX = 8; // max elevation offset in pixels
 
     // Compute the screen-space bounding box of this chunk's isometric tiles.
     // sx = (absX - absY) * 24,  sy = (absX + absY) * 12
     const ax0 = cx * CHUNK_SIZE, ay0 = cy * CHUNK_SIZE;
     const ax1 = ax0 + CHUNK_SIZE - 1, ay1 = ay0 + CHUNK_SIZE - 1;
     const originX = (ax0 - ay1) * (TILE_WIDTH / 2) - hw - pad;
-    const originY = (ax0 + ay0) * (TILE_HEIGHT / 2) - hh - pad;
+    const originY = (ax0 + ay0) * (TILE_HEIGHT / 2) - hh - pad - MAX_ELEV_PX;
     const maxX = (ax1 - ay0) * (TILE_WIDTH / 2) + hw + pad;
-    const maxY = (ax1 + ay1) * (TILE_HEIGHT / 2) + hh + pad;
+    const maxY = (ax1 + ay1) * (TILE_HEIGHT / 2) + hh + pad + MAX_ELEV_PX;
     const texW = maxX - originX;
     const texH = maxY - originY;
 
@@ -1100,15 +1115,42 @@ export class GameScene extends Phaser.Scene {
         const h2 = GameScene.tileHash(absX + 997, absY + 1013);
         const h3 = GameScene.tileHash(absX + 2003, absY + 2017);
 
+        // Quantize elevation to steps and compute pixel offset
+        const elevStep = Math.floor(tile.elevation * 4); // 0-3
+        const elevPx = elevStep * (MAX_ELEV_PX / 3);
+        const tsy = sy - elevPx; // tile screen y with elevation
+
         const baseColor = ground.bases[Math.floor(h * ground.bases.length)];
 
-        // Full diamond fill
+        // Draw side face if elevated (south-east cliff)
+        if (elevPx > 0) {
+          gfx.fillStyle(ground.edge, 0.9);
+          gfx.beginPath();
+          gfx.moveTo(sx + hw, tsy);        // right point
+          gfx.lineTo(sx, tsy + hh);         // bottom point
+          gfx.lineTo(sx, tsy + hh + elevPx); // bottom + height
+          gfx.lineTo(sx + hw, tsy + elevPx); // right + height
+          gfx.closePath();
+          gfx.fillPath();
+
+          // Left side face (south-west)
+          gfx.fillStyle(ground.subA, 0.8);
+          gfx.beginPath();
+          gfx.moveTo(sx - hw, tsy);
+          gfx.lineTo(sx, tsy + hh);
+          gfx.lineTo(sx, tsy + hh + elevPx);
+          gfx.lineTo(sx - hw, tsy + elevPx);
+          gfx.closePath();
+          gfx.fillPath();
+        }
+
+        // Full diamond fill (top face, elevated)
         gfx.fillStyle(baseColor);
         gfx.beginPath();
-        gfx.moveTo(sx, sy - hh);
-        gfx.lineTo(sx + hw, sy);
-        gfx.lineTo(sx, sy + hh);
-        gfx.lineTo(sx - hw, sy);
+        gfx.moveTo(sx, tsy - hh);
+        gfx.lineTo(sx + hw, tsy);
+        gfx.lineTo(sx, tsy + hh);
+        gfx.lineTo(sx - hw, tsy);
         gfx.closePath();
         gfx.fillPath();
 
@@ -1123,33 +1165,33 @@ export class GameScene extends Phaser.Scene {
         const ccx = (h2 - 0.5) * hw * 0.25;        const ccy = (h5 - 0.5) * hh * 0.25;
 
         gfx.fillStyle(ground.subA, 0.3);
-        gfx.fillRect(sx + q1x, sy + q1y, 2, 1);
-        gfx.fillRect(sx + q2x, sy + q2y, 1, 1);
-        gfx.fillRect(sx + q3x, sy + q3y, 1, 2);
-        gfx.fillRect(sx + q4x, sy + q4y, 2, 1);
+        gfx.fillRect(sx + q1x, tsy + q1y, 2, 1);
+        gfx.fillRect(sx + q2x, tsy + q2y, 1, 1);
+        gfx.fillRect(sx + q3x, tsy + q3y, 1, 2);
+        gfx.fillRect(sx + q4x, tsy + q4y, 2, 1);
 
         gfx.fillStyle(ground.subB, 0.22);
-        gfx.fillRect(sx + q2x + 2, sy + q2y - 1, 2, 1);
-        gfx.fillRect(sx + q4x - 1, sy + q4y + 1, 1, 1);
-        gfx.fillRect(sx + ccx, sy + ccy, 1, 1);
+        gfx.fillRect(sx + q2x + 2, tsy + q2y - 1, 2, 1);
+        gfx.fillRect(sx + q4x - 1, tsy + q4y + 1, 1, 1);
+        gfx.fillRect(sx + ccx, tsy + ccy, 1, 1);
 
         const altBase = ground.bases[Math.floor(h3 * ground.bases.length)];
         gfx.fillStyle(altBase, 0.35);
-        gfx.fillRect(sx + q1x - 3, sy + q1y + 1, 1, 1);
-        gfx.fillRect(sx + q3x + 2, sy + q3y - 1, 1, 1);
+        gfx.fillRect(sx + q1x - 3, tsy + q1y + 1, 1, 1);
+        gfx.fillRect(sx + q3x + 2, tsy + q3y - 1, 1, 1);
 
         gfx.lineStyle(1, ground.edge, 0.45);
-        gfx.lineBetween(sx + hw, sy, sx, sy + hh);
-        gfx.lineBetween(sx, sy + hh, sx - hw, sy);
+        gfx.lineBetween(sx + hw, tsy, sx, tsy + hh);
+        gfx.lineBetween(sx, tsy + hh, sx - hw, tsy);
 
         // Biome details
-        this.drawTileDetails(gfx, sx, sy, hw, hh, tile.biomeId, ground.details, h, h2, h3, h4, h5);
+        this.drawTileDetails(gfx, sx, tsy, hw, hh, tile.biomeId, ground.details, h, h2, h3, h4, h5);
 
         // Resource node sprite (uses absolute world positions, not local)
         if (tile.resourceNodeId) {
           const resKey = `res_${tile.resourceNodeId}`;
           const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
-          const resSprite = this.add.sprite(absSx, absSy - 8, resUseKey);
+          const resSprite = this.add.sprite(absSx, absSy - 8 - elevPx, resUseKey);
           resSprite.setOrigin(0.5, 1);
           resSprite.setDepth(absSy);
           resourceSprites.push(resSprite);
@@ -1158,7 +1200,7 @@ export class GameScene extends Phaser.Scene {
             state: {
               id: `res-${cx}-${row}-${col}`,
               itemId: tile.resourceNodeId,
-              position: { x: absSx, y: absSy - 8 },
+              position: { x: absSx, y: absSy - 8 - elevPx },
               remaining: 1 + Math.floor(Math.random() * 3),
               hitProgress: 0,
             },
