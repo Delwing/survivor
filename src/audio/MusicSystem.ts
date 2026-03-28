@@ -291,6 +291,9 @@ export class MusicSystem {
   // Biome / variation tracking
   private currentBiome: string = '';
   private currentVariation: BiomeVariation | null = null;
+  private pendingBiome: string = '';
+  private biomeDebounceTimer: number | null = null;
+  private readonly BIOME_SWITCH_DELAY_MS = 3000; // wait 3s before switching music
 
   // Music state
   private musicState: MusicState = 'exploring';
@@ -360,10 +363,42 @@ export class MusicSystem {
     this.arpGain.connect(this.masterGain);
   }
 
-  /** Switch to music for the given biome. Seamlessly transitions. */
+  /** Switch to music for the given biome. Debounced to avoid rapid switching at biome borders. */
   setBiome(biomeId: string): void {
+    if (biomeId === this.currentBiome && biomeId === this.pendingBiome) return;
+
+    // If this is the first biome set (no music yet), apply immediately
+    if (!this.currentBiome) {
+      this.applyBiome(biomeId);
+      return;
+    }
+
+    // If we walked back to our current biome, cancel the pending switch
+    if (biomeId === this.currentBiome) {
+      this.pendingBiome = biomeId;
+      if (this.biomeDebounceTimer !== null) {
+        window.clearTimeout(this.biomeDebounceTimer);
+        this.biomeDebounceTimer = null;
+      }
+      return;
+    }
+
+    // Schedule a delayed switch (resets if biome changes again)
+    this.pendingBiome = biomeId;
+    if (this.biomeDebounceTimer !== null) {
+      window.clearTimeout(this.biomeDebounceTimer);
+    }
+    this.biomeDebounceTimer = window.setTimeout(() => {
+      this.biomeDebounceTimer = null;
+      this.applyBiome(this.pendingBiome);
+    }, this.BIOME_SWITCH_DELAY_MS);
+  }
+
+  /** Actually apply the biome music change. */
+  private applyBiome(biomeId: string): void {
     if (biomeId === this.currentBiome) return;
     this.currentBiome = biomeId;
+    this.pendingBiome = biomeId;
 
     const variations = BIOME_CONFIGS[biomeId] ?? BIOME_CONFIGS['forest'];
     this.currentVariation = variations[Math.floor(Math.random() * variations.length)];
@@ -410,6 +445,10 @@ export class MusicSystem {
     if (this.schedulerId !== null) {
       clearInterval(this.schedulerId);
       this.schedulerId = null;
+    }
+    if (this.biomeDebounceTimer !== null) {
+      clearTimeout(this.biomeDebounceTimer);
+      this.biomeDebounceTimer = null;
     }
     // Fade out master gain to avoid a click
     if (this.masterGain && this.audioCtx) {
