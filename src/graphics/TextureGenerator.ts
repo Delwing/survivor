@@ -969,6 +969,7 @@ function generateResourceTextures(scene: Phaser.Scene): void {
   drawCrystal(scene, 'res_shadow_essence', P.purpleDark, P.purple, P.purpleLight);
   drawCrystal(scene, 'res_void_crystal', P.purple, P.purpleLight, P.white);
   drawTree(scene, 'res_corrupted_wood', P.purpleDark, P.purple, P.grayDeep, P.outline);
+  drawPineTree(scene, 'res_pine_wood', P.greenDark, P.green, P.brown, P.brownDark);
 
   // Fallback
   const ctx = makeCanvas(scene, 'resource_node', 8, 8);
@@ -1014,6 +1015,41 @@ function drawTree(scene: Phaser.Scene, key: string, leaf: string, leafLight: str
   // Darker leaf shading on bottom-right
   rect(ctx, 13, 15, 4, 3, trunkDark);
   rect(ctx, 14, 10, 3, 3, trunkDark);
+  drawSpriteOutline(ctx, w, h, P.outline);
+  finalize(scene, key);
+}
+
+function drawPineTree(scene: Phaser.Scene, key: string, leaf: string, leafLight: string, trunk: string, trunkDark: string): void {
+  const w = 20, h = 30;
+  const ctx = makeCanvas(scene, key, w, h);
+  // Shadow
+  rect(ctx, 5, 27, 10, 3, '#00000025');
+  // Trunk — tall and narrow
+  rect(ctx, 9, 14, 2, 15, trunk);
+  rect(ctx, 9, 14, 1, 15, trunkDark);
+  // Bark texture
+  px(ctx, 9, 17, trunkDark); px(ctx, 10, 20, trunkDark);
+  px(ctx, 9, 23, trunkDark);
+  // Bottom tier (widest)
+  rect(ctx, 3, 14, 14, 4, leaf);
+  rect(ctx, 4, 13, 12, 2, leaf);
+  rect(ctx, 5, 12, 10, 2, leaf);
+  // Middle tier
+  rect(ctx, 5, 8, 10, 5, leaf);
+  rect(ctx, 6, 7, 8, 2, leaf);
+  rect(ctx, 7, 6, 6, 2, leaf);
+  // Top tier (pointed)
+  rect(ctx, 7, 3, 6, 4, leaf);
+  rect(ctx, 8, 2, 4, 2, leaf);
+  rect(ctx, 9, 0, 2, 3, leaf);
+  // Highlights on left
+  px(ctx, 5, 13, leafLight); px(ctx, 6, 12, leafLight);
+  px(ctx, 6, 8, leafLight); px(ctx, 7, 7, leafLight);
+  px(ctx, 8, 3, leafLight); px(ctx, 9, 1, leafLight);
+  // Dark shading on right
+  rect(ctx, 14, 14, 2, 3, trunkDark);
+  rect(ctx, 12, 9, 2, 3, trunkDark);
+  rect(ctx, 11, 4, 2, 2, trunkDark);
   drawSpriteOutline(ctx, w, h, P.outline);
   finalize(scene, key);
 }

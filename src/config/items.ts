@@ -4,7 +4,7 @@ export const ITEM_DEFINITIONS: ItemDefinition[] = [
   // ── Tier 1 Resources ──
   { id: 'wood', name: 'Wood', description: 'Common timber. Used for planks, tools, and building.', type: 'resource', tier: 1, stackable: true, maxStack: 99, quality: 'normal', modifiers: [], color: 0x8b4513 },
   { id: 'stone', name: 'Stone', description: 'Sturdy rock. Used for axes and building stations.', type: 'resource', tier: 1, stackable: true, maxStack: 99, quality: 'normal', modifiers: [], color: 0x808080 },
-  { id: 'berries', name: 'Berries', description: 'Eat to restore 15 hunger. Can be made into jam.', type: 'consumable', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xff6347 },
+  { id: 'berries', name: 'Berries', description: 'Eat to restore 3 hunger. Better as jam.', type: 'consumable', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xff6347 },
   { id: 'herbs', name: 'Herbs', description: 'Medicinal plants. Used for bandages, wraps, and potions.', type: 'resource', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0x32cd32 },
   { id: 'meat', name: 'Meat', description: 'Raw meat from wildlife. Cook at a campfire to eat.', type: 'resource', tier: 1, stackable: true, maxStack: 20, quality: 'normal', modifiers: [], color: 0xcd5c5c },
   { id: 'hide', name: 'Hide', description: 'Animal skin. Used for leather armor and reinforced gear.', type: 'resource', tier: 1, stackable: true, maxStack: 30, quality: 'normal', modifiers: [], color: 0xdeb887 },

@@ -55,6 +55,13 @@ export class SFXSystem {
     }, 80);
   }
 
+  /** Set master volume (0–1 normalized, internally scaled to 0–0.3). */
+  setVolume(vol: number): void {
+    if (this.masterGain) {
+      this.masterGain.gain.value = Math.max(0, Math.min(0.3, vol * 0.3));
+    }
+  }
+
   private play(def: SFXDef): void {
     if (!this.audioCtx || !this.masterGain) return;
 

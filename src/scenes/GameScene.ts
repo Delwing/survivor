@@ -20,6 +20,7 @@ import { InventoryPanel } from '@/ui/InventoryPanel';
 import { CraftingPanel } from '@/ui/CraftingPanel';
 import { NPCPanel } from '@/ui/NPCPanel';
 import { MapPanel } from '@/ui/MapPanel';
+import { PauseScene } from '@/ui/PauseMenu';
 import { NPCState } from '@/types/entities';
 import { MobAI } from '@/systems/MobAI';
 import { MOB_DEFINITIONS } from '@/config/mobs';
@@ -186,9 +187,9 @@ export class GameScene extends Phaser.Scene {
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
         this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 HP +30 Food', '#fbbf24');
       } else if (itemId === 'berries') {
-        this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 15);
+        this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 3);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
-        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+15 Food', '#fbbf24');
+        this.showFloatingText(this.playerSprite.x, this.playerSprite.y - 20, '+3 Food', '#fbbf24');
       } else if (itemId === 'berry_jam') {
         this.player.stats.hunger = Math.min(this.player.stats.maxHunger, this.player.stats.hunger + 40);
         this.itemSystem.removeItem(this.player.inventory, itemId, 1);
@@ -489,9 +490,10 @@ export class GameScene extends Phaser.Scene {
       }
     });
 
-    // ESC — debug die
+    // ESC — pause and show pause menu overlay scene
     this.input.keyboard!.on('keydown-ESC', () => {
-      this.endRun('Debug exit');
+      this.scene.pause('Game');
+      this.scene.launch('Pause', { sfx: this.sfx });
     });
 
     // Listen for biome changes and map exploration
@@ -1192,7 +1194,8 @@ export class GameScene extends Phaser.Scene {
 
         // Resource node sprite (uses absolute world positions, not local)
         if (tile.resourceNodeId) {
-          const resKey = `res_${tile.resourceNodeId}`;
+          let resKey = `res_${tile.resourceNodeId}`;
+          if (tile.resourceNodeId === 'wood' && tile.biomeId === 'pine_forest') resKey = 'res_pine_wood';
           const resUseKey = this.textures.exists(resKey) ? resKey : 'resource_node';
           const resSprite = this.add.sprite(absSx, absSy - 8 - elevPx, resUseKey);
           resSprite.setOrigin(0.5, 1);
@@ -1678,6 +1681,12 @@ export class GameScene extends Phaser.Scene {
     this.placedStations.push({ type, x: worldX, y: worldY, sprite });
     this.showFloatingText(worldX, worldY - 20, `${type} placed!`, '#86efac');
     this.eventBus.emit('station-placed', { type, x: worldX, y: worldY });
+  }
+
+  /** Called by PauseScene when user clicks Quit */
+  quitFromPause(): void {
+    this.scene.resume('Game');
+    this.endRun('Quit');
   }
 
   private endRun(cause: string): void {

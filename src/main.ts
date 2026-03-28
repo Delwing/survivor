@@ -5,6 +5,7 @@ import { MainMenuScene } from '@/scenes/MainMenuScene';
 import { GameScene } from '@/scenes/GameScene';
 import { GameOverScene } from '@/scenes/GameOverScene';
 import { MetaHubScene } from '@/scenes/MetaHubScene';
+import { PauseScene } from '@/ui/PauseMenu';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -14,7 +15,7 @@ const config: Phaser.Types.Core.GameConfig = {
   backgroundColor: '#1a1a2e',
   pixelArt: true,
   scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-  scene: [BootScene, MainMenuScene, GameScene, GameOverScene, MetaHubScene],
+  scene: [BootScene, MainMenuScene, GameScene, GameOverScene, MetaHubScene, PauseScene],
 };
 
 new Phaser.Game(config);
