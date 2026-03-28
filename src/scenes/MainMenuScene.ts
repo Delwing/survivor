@@ -23,8 +23,20 @@ export class MainMenuScene extends Phaser.Scene {
     this.bg.create(this);
 
     this.music = getSharedMusic();
-    this.music.init();
-    this.music.playMenuDrone();
+    // If audio already initialized (returning from game), play drone immediately.
+    // On cold load, start drone on first click anywhere in the scene.
+    if (this.music.getAudioContext()) {
+      this.music.playMenuDrone();
+    } else {
+      const startAudio = () => {
+        this.music.init();
+        this.music.playMenuDrone();
+      };
+      // Hook into both buttons' pointerdown (fires before pointerup/onClick)
+      this.input.on('gameobjectdown', startAudio);
+      // Also catch clicks on empty background
+      this.input.on('pointerdown', startAudio);
+    }
 
     const title = stoneTitle(this, cx, cy - 100, 'SURVIVOR', '52px');
     title.setDepth(10);
@@ -45,10 +57,9 @@ export class MainMenuScene extends Phaser.Scene {
       label: 'New Run',
       fontSize: '24px',
       onClick: () => {
+        this.music.init();
         this.music.stopMenuDrone();
-        this.time.delayedCall(300, () => {
-          this.scene.start('Game', { seed: Date.now().toString(36) });
-        });
+        this.scene.start('Game', { seed: Date.now().toString(36) });
       },
     });
     newRunBtn.setDepth(10);
@@ -62,6 +73,8 @@ export class MainMenuScene extends Phaser.Scene {
       label: 'Progression',
       fontSize: '18px',
       onClick: () => {
+        this.music.init();
+        this.music.playMenuDrone();
         this.scene.start('MetaHub');
       },
     });

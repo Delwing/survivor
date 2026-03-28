@@ -18,7 +18,6 @@ export class MetaHubScene extends Phaser.Scene {
     this.bg.create(this);
 
     const music = getSharedMusic();
-    music.init();
     music.playMenuDrone();
 
     this.events.once('shutdown', () => this.bg.destroy());

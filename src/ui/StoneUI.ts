@@ -85,7 +85,7 @@ export function stoneButton(config: StoneButtonConfig): Phaser.GameObjects.Conta
   container.setSize(width, height);
   container.setInteractive({ useHandCursor: true });
 
-  let baseY = 0;
+  let baseY = y;
 
   container.on('pointerover', () => {
     drawBg(0x454545, 0x888888);

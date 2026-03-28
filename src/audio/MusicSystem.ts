@@ -698,26 +698,27 @@ export class MusicSystem {
     this.droneGain.connect(ctx.destination);
 
     // Fade in
-    this.droneGain.gain.setTargetAtTime(0.04, ctx.currentTime, 0.5);
+    this.droneGain.gain.setTargetAtTime(0.03, ctx.currentTime, 0.8);
 
-    // Two slightly detuned sawtooth oscillators for a beating, organic tone
-    const freqs = [40, 42];
+    // Two triangle oscillators with subtle detuning for a warm, dark hum
+    // ~110Hz (A2) is low but audible on all speakers
+    const freqs = [110, 112];
     for (const freq of freqs) {
       const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
+      osc.type = 'triangle';
       osc.frequency.value = freq;
       osc.connect(this.droneGain);
       osc.start();
       this.droneOscs.push(osc);
     }
 
-    // Slow LFO tremolo on the drone gain
+    // Slow LFO tremolo — gentle breathing
     this.droneLfo = ctx.createOscillator();
     this.droneLfo.type = 'sine';
-    this.droneLfo.frequency.value = 0.1;
+    this.droneLfo.frequency.value = 0.08;
 
     const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.015;
+    lfoGain.gain.value = 0.012;
 
     this.droneLfo.connect(lfoGain);
     lfoGain.connect(this.droneGain.gain);
@@ -752,7 +753,7 @@ export class MusicSystem {
     filter.frequency.value = 80;
 
     const noiseGain = ctx.createGain();
-    noiseGain.gain.value = 0.3;
+    noiseGain.gain.value = 0.2;
 
     source.connect(filter);
     filter.connect(noiseGain);
@@ -767,7 +768,7 @@ export class MusicSystem {
     };
 
     // Schedule the next percussive hit at a random interval
-    const delay = 4000 + Math.random() * 4000; // 4000–8000 ms
+    const delay = 6000 + Math.random() * 8000; // 6000–14000 ms
     this.dronePercId = window.setTimeout(() => this.scheduleDronePerc(), delay);
   }
 
