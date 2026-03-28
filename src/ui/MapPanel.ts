@@ -9,10 +9,20 @@ const TILE_PX = 12; // pixels per chunk square
 
 const BIOME_COLORS: Record<string, number> = {
   forest:          0x22aa22,
+  dark_forest:     0x1a8822,
+  pine_forest:     0x228844,
   rocky_highlands: 0x888888,
+  granite_peaks:   0x999988,
+  crystal_caverns: 0x7788aa,
   swamp:           0x2e5c2e,
+  bog:             0x223322,
+  marshland:       0x336644,
   volcanic_wastes: 0xaa2222,
+  ash_fields:      0x666666,
+  lava_flows:      0xcc4422,
   corrupted_lands: 0x660099,
+  shadow_realm:    0x440077,
+  void_wastes:     0x330066,
 };
 
 const DEFAULT_COLOR = 0x334155;

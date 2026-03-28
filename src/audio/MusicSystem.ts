@@ -261,6 +261,18 @@ const BIOME_CONFIGS: Record<string, BiomeVariation[]> = {
   ],
 };
 
+// Variants share parent biome music
+BIOME_CONFIGS['dark_forest'] = BIOME_CONFIGS['forest'];
+BIOME_CONFIGS['pine_forest'] = BIOME_CONFIGS['forest'];
+BIOME_CONFIGS['granite_peaks'] = BIOME_CONFIGS['rocky_highlands'];
+BIOME_CONFIGS['crystal_caverns'] = BIOME_CONFIGS['rocky_highlands'];
+BIOME_CONFIGS['bog'] = BIOME_CONFIGS['swamp'];
+BIOME_CONFIGS['marshland'] = BIOME_CONFIGS['swamp'];
+BIOME_CONFIGS['ash_fields'] = BIOME_CONFIGS['volcanic_wastes'];
+BIOME_CONFIGS['lava_flows'] = BIOME_CONFIGS['volcanic_wastes'];
+BIOME_CONFIGS['shadow_realm'] = BIOME_CONFIGS['corrupted_lands'];
+BIOME_CONFIGS['void_wastes'] = BIOME_CONFIGS['corrupted_lands'];
+
 /** Fallback variation when biome is unknown. */
 const DEFAULT_VARIATION = BIOME_CONFIGS['forest'][0];
 

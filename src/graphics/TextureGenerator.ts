@@ -155,10 +155,20 @@ function generateTileTextures(scene: Phaser.Scene): void {
   // Isometric diamond: 48x24. Draw pixel by pixel.
   drawIsoDiamond(scene, 'tile', P.green, P.greenLight, P.greenDark);
   drawIsoDiamond(scene, 'tile_forest', P.green, P.greenLight, P.greenDark);
+  drawIsoDiamond(scene, 'tile_dark_forest', P.greenDark, P.green, P.brownDark);
+  drawIsoDiamond(scene, 'tile_pine_forest', P.green, P.greenDark, P.greenLight);
   drawIsoDiamond(scene, 'tile_rocky_highlands', P.gray, P.grayLight, P.grayDark);
+  drawIsoDiamond(scene, 'tile_granite_peaks', P.grayLight, P.gray, P.grayDark);
+  drawIsoDiamond(scene, 'tile_crystal_caverns', P.gray, P.grayDark, P.grayLight);
   drawIsoDiamond(scene, 'tile_swamp', P.swampGreen, P.swampDark, P.swampMud);
+  drawIsoDiamond(scene, 'tile_bog', P.swampDark, P.swampGreen, P.swampMud);
+  drawIsoDiamond(scene, 'tile_marshland', P.swampGreen, P.swampMud, P.swampDark);
   drawIsoDiamond(scene, 'tile_volcanic_wastes', P.lavaDark, P.lava, P.grayDeep);
+  drawIsoDiamond(scene, 'tile_ash_fields', P.grayDeep, P.grayDark, P.gray);
+  drawIsoDiamond(scene, 'tile_lava_flows', P.lava, P.lavaDark, P.grayDeep);
   drawIsoDiamond(scene, 'tile_corrupted_lands', P.purpleDark, P.purple, '#1a0033');
+  drawIsoDiamond(scene, 'tile_shadow_realm', P.purple, P.purpleDark, '#0a0020');
+  drawIsoDiamond(scene, 'tile_void_wastes', P.purpleDark, P.purple, '#000a20');
 }
 
 function drawIsoDiamond(scene: Phaser.Scene, key: string, fill: string, highlight: string, shade: string): void {

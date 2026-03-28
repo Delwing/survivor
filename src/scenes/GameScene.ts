@@ -547,8 +547,11 @@ export class GameScene extends Phaser.Scene {
 
   // Max recipe tier discoverable via scroll per biome
   private static readonly BIOME_SCROLL_TIER: Record<string, number> = {
-    forest: 3, rocky_highlands: 3, swamp: 3,
-    volcanic_wastes: 4, corrupted_lands: 5,
+    forest: 3, dark_forest: 3, pine_forest: 3,
+    rocky_highlands: 3, granite_peaks: 3, crystal_caverns: 3,
+    swamp: 3, bog: 3, marshland: 3,
+    volcanic_wastes: 4, ash_fields: 4, lava_flows: 4,
+    corrupted_lands: 5, shadow_realm: 5, void_wastes: 5,
   };
 
   private handleItemPickedUp(itemId: string): void {
@@ -969,6 +972,81 @@ export class GameScene extends Phaser.Scene {
       details: [0x8b00ff, 0xcc44ff, 0xff00ff, 0xaa00cc, 0x080008, 0x100020],
       subA: 0x180030,
       subB: 0x440070,
+    },
+    // ── Forest variants ────────────────────────────────────────────────────
+    dark_forest: {
+      bases: [0x1e5c22, 0x245a26, 0x1a5420, 0x286028, 0x205622, 0x185018],
+      edge: 0x143c18,
+      details: [0x3a7a30, 0x2a6a24, 0xc04020, 0x6b4010, 0x4a2c10, 0x1e3010],
+      subA: 0x184020,
+      subB: 0x306030,
+    },
+    pine_forest: {
+      bases: [0x2a7838, 0x307a3c, 0x267034, 0x368040, 0x2c7436, 0x246c30],
+      edge: 0x1c5428,
+      details: [0x4aaa44, 0x52b04a, 0xd0d860, 0x80c060, 0x3a6840, 0x284c30],
+      subA: 0x205830,
+      subB: 0x40904a,
+    },
+    // ── Rocky Highlands variants ───────────────────────────────────────────
+    granite_peaks: {
+      bases: [0x847060, 0x8a7666, 0x7e6a5a, 0x907870, 0x867268, 0x7c6c5e],
+      edge: 0x5a4a40,
+      details: [0x5a4a38, 0x9a8870, 0x404030, 0xb09878, 0x706050, 0x302820],
+      subA: 0x625040,
+      subB: 0x9c8878,
+    },
+    crystal_caverns: {
+      bases: [0x5a6878, 0x606e80, 0x546270, 0x667488, 0x5c6a7c, 0x506474],
+      edge: 0x3a4858,
+      details: [0x4488cc, 0x66aadd, 0x88ccff, 0x2266aa, 0x3a3a5a, 0x202838],
+      subA: 0x384858,
+      subB: 0x7090aa,
+    },
+    // ── Swamp variants ─────────────────────────────────────────────────────
+    bog: {
+      bases: [0x243a24, 0x273828, 0x213420, 0x2c3e2c, 0x253622, 0x1e3018],
+      edge: 0x162614,
+      details: [0x0e1e1e, 0x1a4a20, 0x382e14, 0x101c10, 0x6b5020, 0x4a3818],
+      subA: 0x162210,
+      subB: 0x344830,
+    },
+    marshland: {
+      bases: [0x3a5e48, 0x3d5c44, 0x355442, 0x426250, 0x38583e, 0x3c5e44],
+      edge: 0x284030,
+      details: [0x2a5e5e, 0x306e50, 0x4a6a38, 0x205050, 0x8b7a48, 0x607060],
+      subA: 0x244434,
+      subB: 0x4a7458,
+    },
+    // ── Volcanic Wastes variants ───────────────────────────────────────────
+    ash_fields: {
+      bases: [0x484848, 0x505050, 0x424242, 0x3c3c3c, 0x4c4c4c, 0x404040],
+      edge: 0x2a2a2a,
+      details: [0xff6600, 0xcc4400, 0x888888, 0x303030, 0x1a1a1a, 0x222222],
+      subA: 0x2c2c2c,
+      subB: 0x606060,
+    },
+    lava_flows: {
+      bases: [0x5a2010, 0x622818, 0x541c0c, 0x4e1808, 0x5e2214, 0x481a0a],
+      edge: 0x300c04,
+      details: [0xff6600, 0xff8800, 0xffaa00, 0xff4400, 0x282020, 0x1a1010],
+      subA: 0x2e0c04,
+      subB: 0x782020,
+    },
+    // ── Corrupted Lands variants ───────────────────────────────────────────
+    shadow_realm: {
+      bases: [0x200040, 0x280050, 0x1c0038, 0x2e0058, 0x240044, 0x1e0040],
+      edge: 0x100020,
+      details: [0x6600cc, 0xaa22ff, 0xdd00ee, 0x880099, 0x040004, 0x080018],
+      subA: 0x100028,
+      subB: 0x380060,
+    },
+    void_wastes: {
+      bases: [0x0a0030, 0x100038, 0x080028, 0x140040, 0x0c0034, 0x0a002e],
+      edge: 0x060018,
+      details: [0x0044aa, 0x0066cc, 0x00aaff, 0x003388, 0x060006, 0x000410],
+      subA: 0x060020,
+      subB: 0x1a0050,
     },
   };
 

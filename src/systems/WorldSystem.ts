@@ -67,20 +67,41 @@ export class WorldSystem {
     // Spawn chunk is always forest
     if (cx === 0 && cy === 0) return 'forest';
 
+    // Noise value used to pick sub-variant deterministically
+    const v = this.resourceNoise.getNormalized(cx * 3.7, cy * 3.7);
+
     // T5: Corrupted — only 20+ chunks out
-    if (dist >= 20 && corruption > 0.85) return 'corrupted_lands';
+    if (dist >= 20 && corruption > 0.85) {
+      if (v < 0.33) return 'corrupted_lands';
+      if (v < 0.66) return 'shadow_realm';
+      return 'void_wastes';
+    }
 
     // T4: Volcanic — only 14+ chunks out
-    if (dist >= 14 && elevation > 0.6 && moisture < 0.3 && heat > 0.7) return 'volcanic_wastes';
+    if (dist >= 14 && elevation > 0.6 && moisture < 0.3 && heat > 0.7) {
+      if (v < 0.33) return 'volcanic_wastes';
+      if (v < 0.66) return 'ash_fields';
+      return 'lava_flows';
+    }
 
     // T3: Swamp — only 8+ chunks out
-    if (dist >= 8 && elevation < 0.3 && moisture > 0.6) return 'swamp';
+    if (dist >= 8 && elevation < 0.3 && moisture > 0.6) {
+      if (v < 0.33) return 'swamp';
+      if (v < 0.66) return 'bog';
+      return 'marshland';
+    }
 
     // T2: Rocky Highlands — only 4+ chunks out
-    if (dist >= 4 && elevation > 0.6 && moisture < 0.4) return 'rocky_highlands';
+    if (dist >= 4 && elevation > 0.6 && moisture < 0.4) {
+      if (v < 0.33) return 'rocky_highlands';
+      if (v < 0.66) return 'granite_peaks';
+      return 'crystal_caverns';
+    }
 
-    // Everything else is forest
-    return 'forest';
+    // T1: Forest (with variants)
+    if (v < 0.33) return 'forest';
+    if (v < 0.66) return 'dark_forest';
+    return 'pine_forest';
   }
 
   private placeResource(worldX: number, worldY: number, biomeId: string): string | null {
