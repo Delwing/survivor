@@ -678,4 +678,131 @@ export class MusicSystem {
       source.disconnect();
     };
   }
+
+  // ---------------------------------------------------------------------------
+  // Menu drone
+  // ---------------------------------------------------------------------------
+
+  /** Start the dark ambient menu drone. Safe to call multiple times. */
+  playMenuDrone(): void {
+    if (this.droneActive || !this.audioCtx) return;
+    this.droneActive = true;
+
+    const ctx = this.audioCtx;
+
+    // Drone gain — connected directly to destination, independent of masterGain
+    this.droneGain = ctx.createGain();
+    this.droneGain.gain.value = 0.0;
+    this.droneGain.connect(ctx.destination);
+
+    // Fade in
+    this.droneGain.gain.setTargetAtTime(0.04, ctx.currentTime, 0.5);
+
+    // Two slightly detuned sawtooth oscillators for a beating, organic tone
+    const freqs = [40, 42];
+    for (const freq of freqs) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = freq;
+      osc.connect(this.droneGain);
+      osc.start();
+      this.droneOscs.push(osc);
+    }
+
+    // Slow LFO tremolo on the drone gain
+    this.droneLfo = ctx.createOscillator();
+    this.droneLfo.type = 'sine';
+    this.droneLfo.frequency.value = 0.1;
+
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.015;
+
+    this.droneLfo.connect(lfoGain);
+    lfoGain.connect(this.droneGain.gain);
+    this.droneLfo.start();
+
+    // Start sporadic percussive noise events
+    this.scheduleDronePerc();
+  }
+
+  /** Schedule a single filtered noise burst and queue the next one. */
+  private scheduleDronePerc(): void {
+    if (!this.droneActive || !this.audioCtx || !this.droneGain) return;
+
+    const ctx = this.audioCtx;
+
+    // Short noise buffer with decay envelope applied directly to samples
+    const duration = 0.12;
+    const bufferSize = Math.ceil(ctx.sampleRate * duration);
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const decay = Math.pow(1 - i / bufferSize, 2);
+      data[i] = (Math.random() * 2 - 1) * decay;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+
+    // Lowpass filter to keep it very dark
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 80;
+
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.value = 0.3;
+
+    source.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.droneGain);
+
+    source.start();
+
+    source.onended = () => {
+      noiseGain.disconnect();
+      filter.disconnect();
+      source.disconnect();
+    };
+
+    // Schedule the next percussive hit at a random interval
+    const delay = 4000 + Math.random() * 4000; // 4000–8000 ms
+    this.dronePercId = window.setTimeout(() => this.scheduleDronePerc(), delay);
+  }
+
+  /** Stop the menu drone with a smooth fade-out. */
+  stopMenuDrone(): void {
+    if (!this.droneActive) return;
+    this.droneActive = false;
+
+    // Cancel the next scheduled perc hit
+    if (this.dronePercId !== null) {
+      clearTimeout(this.dronePercId);
+      this.dronePercId = null;
+    }
+
+    // Fade the drone out smoothly
+    if (this.droneGain && this.audioCtx) {
+      this.droneGain.gain.setTargetAtTime(0, this.audioCtx.currentTime, 0.3);
+    }
+
+    // After the fade, stop and disconnect everything
+    setTimeout(() => {
+      for (const osc of this.droneOscs) {
+        try { osc.stop(); } catch { /* already stopped */ }
+        osc.disconnect();
+      }
+      this.droneOscs = [];
+
+      if (this.droneLfo) {
+        try { this.droneLfo.stop(); } catch { /* already stopped */ }
+        this.droneLfo.disconnect();
+        this.droneLfo = null;
+      }
+
+      if (this.droneGain) {
+        this.droneGain.disconnect();
+        this.droneGain = null;
+      }
+    }, 1500);
+  }
 }
